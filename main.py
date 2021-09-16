@@ -151,25 +151,10 @@ def main(argv=None):
         'milp_optimization', \
         'float_add_opt', \
         'hw_tree_blocks', \
-        'max_FixPt_err_query', \
-        'output_min_max', \
-        'munin_single_query_verify', \
-        'eval_float_error', \
-        'eval_fixed_error', \
-        'adaptively_optimize_for_Fxpt', \
-        'exhaust_search_for_max_error', \
-        'dot_file_to_visualize_ac', \
-        'float_add_optimization_exhaustive', \
-        'generate_ASIP_cfile', \
-        'vectorize_inputs_of_building_blocks', \
-        'ac_eval_testset_error', \
-        'scheduling_for_gather', \
-        'post_scheduling', \
         'verif_helper', \
         'ac_eval', \
         'compile_for_async_arch', \
         'openmp', \
-        'batched_cuda', \
         'async_partition', \
         'sparse_tr_solve_statistics', \
         'sparse_tr_solve_full', \
