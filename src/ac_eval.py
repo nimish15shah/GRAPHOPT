@@ -9,7 +9,7 @@ from . import common_classes
 from .reporting_tools import reporting_tools
 from . import graph_init
 from . import evidence_analysis
-import FixedPointImplementation 
+from . import FixedPointImplementation 
 from enum import Enum
 
 import logging

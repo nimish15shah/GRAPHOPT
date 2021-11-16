@@ -6,13 +6,6 @@ from pathlib import Path
 from collections import defaultdict
 import csv
 
-# path_to_repo= '../sparse_linear_algebra'
-
-# path to FixedPointImplementation
-# sys.path.insert(0, path_to_repo)
-
-# out_prefix= "/esat/puck1/users/nshah/cpu_openmp/compiled_bin/"
-
 def get_gpu_data(fname):
   with open(fname, 'r') as fp:
     data = csv.reader(fp, delimiter=',')

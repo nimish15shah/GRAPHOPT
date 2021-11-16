@@ -1,10 +1,12 @@
-seaborn==0.10.1
+matplotlib==3.2.1
+numpy==1.19.4
 termcolor==1.1.0
 networkx_viewer==0.2.0
-networkx==2.4
+seaborn==0.10.1
 ortools==7.6.7691
+scipy==1.6.0
 pydot==1.4.1
-matplotlib==3.2.1
+networkx==2.4
 minizinc==0.2.3
-gurobipy==5.0.2
-Protocol==0.1.0
+gurobipy==9.5.0
+python_igraph==0.9.8

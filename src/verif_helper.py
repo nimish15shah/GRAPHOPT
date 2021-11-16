@@ -3,7 +3,7 @@ import random
 import logging as log
 
 from . import ac_eval
-import FixedPointImplementation
+from . import FixedPointImplementation
 from . import common_classes
 from . import files_parser
 from . import psdd

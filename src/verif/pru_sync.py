@@ -2,7 +2,7 @@
 from .. import common_classes
 from .. import ac_eval
 
-import FixedPointImplementation 
+from .. import FixedPointImplementation 
 
 
 def main(graph, instr_ls_obj, map_param_to_addr, n_pipe_stages):

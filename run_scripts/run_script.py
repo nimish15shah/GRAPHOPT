@@ -19,7 +19,7 @@ def run(args):
     fitness_incr= 5.0
     for step in range(1,6):
       run_cmd= "python main.py " + str(args.net) + ' -t --tmode ' + str(args.tmode) + ' --cir_type ' + str(args.cir_type) + ' --targs 5 4 2 ' + str(step*fitness_incr) + ' ALL >> ./LOG/run_log' + '_'+ str(args.net)
-      print run_cmd
+      print(run_cmd)
       ret= os.system(run_cmd)
   
   elif args.tmode == 'hw_tree_blocks_all_nets':
@@ -29,7 +29,7 @@ def run(args):
     for net in networks:
       for step in range(2,3):
         run_cmd= "python main.py " + str(net) + ' -t --tmode hw_tree_blocks --cir_type ' + str(args.cir_type) + ' --targs 5 1 1 ' + str(step*fitness_incr) + ' ALL >> ./LOG/run_log' + '_'+ str(net)
-        print run_cmd
+        print(run_cmd)
         ret= os.system(run_cmd)
 
   elif args.tmode == 'scheduling_for_gather':
@@ -39,7 +39,7 @@ def run(args):
     for net in networks:
       for step in range(2,3):
         run_cmd= "python main.py " + str(net) + ' -t --tmode scheduling_for_gather --cir_type ' + str(args.cir_type) + ' --targs 5 1 1 ' + str(step*fitness_incr) + ' ALL >> ./LOG/run_log' + '_'+ str(net)
-        print run_cmd
+        print(run_cmd)
         ret= os.system(run_cmd)
 
   else:

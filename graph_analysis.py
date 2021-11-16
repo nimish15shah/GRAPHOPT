@@ -32,11 +32,6 @@ logging.basicConfig(level=logging.INFO)
 logger= logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-#path_to_repo= '/users/micas/nshah/Downloads/PhD/Academic/Bayesian_Networks_project/Hardware_Implementation/Auto_RTL_Generation/'
-path_to_repo= '../../../'
-
-# path to FixedPointImplementation
-sys.path.insert(0, path_to_repo + 'precisionReduction/')
 
 #**** imports from our codebase *****
 import src.common_classes
@@ -51,7 +46,7 @@ import src.useful_methods
 import src.ac_eval
 import src.evidence_analysis
 import src.decompose
-import FixedPointImplementation
+import src.FixedPointImplementation as FixedPointImplementation
 import src.files_parser
 import src.energy
 import src.bank_allocate
@@ -71,10 +66,9 @@ import src.optimization.pipeline_scheduling_or
 import src.optimization.write_to_file
 import src.optimization.pe_bank_allocate
 import src.openmp.gen_code
-import src.cuda.gen_code
+# import src.cuda.gen_code
 import src.sparse_linear_algebra.main
 import src.sparse_linear_algebra.matrix_names_list
-import conference_plots.JSSC_2021.plots.posit_sparse_tr_solve
 
 #********
 # Contains methods to analysze the DAG
@@ -287,7 +281,6 @@ class graph_analysis_c():
       # plots
       log_path= './no_backup/log/sparse_tr_solve_low_precision_signed_nz_norm_recursive.log'
       # log_path= './no_backup/log/sparse_tr_solve_low_precision.log'
-      conference_plots.JSSC_2021.plots.posit_sparse_tr_solve.plot_sparse_tr_solve_rel_err(log_path, filter_names, savefig= False)
       exit(1)
 
       name_list = [
@@ -1063,7 +1056,7 @@ n_iter, {n_iter},\
         with open(in_path, 'rb+') as fp:
           list_of_partitions= pickle.load(fp)
         outpath= store_prefix + '{}_{}threads.cu'.format(self.net, n_threads)
-        src.cuda.gen_code.main(outpath, self.graph, self.graph_nx, list_of_partitions, golden_val)
+        # src.cuda.gen_code.main(outpath, self.graph, self.graph_nx, list_of_partitions, golden_val)
       exit(0)
 
     if mode == 'generate_binary_executable':

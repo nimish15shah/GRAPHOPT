@@ -3,7 +3,7 @@ import logging as log
 from ..useful_methods import clog2, format_hex, printcol
 from ..new_arch import memory_allocation
 
-import FixedPointImplementation as lib
+from .. import FixedPointImplementation as lib
 
 def main(global_var, graph, status_dict, list_of_schedules, config_obj):
   init_data_class_obj= init_data_c()
