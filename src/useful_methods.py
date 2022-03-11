@@ -363,3 +363,12 @@ def plot_graph(G, **kw):
   plt.show()
   #app= Viewer(G)
   #app.mainloop()
+
+def relabel_nodes_with_contiguous_numbers(graph_nx, start= 0):
+  """
+    Creates a shallow copy
+  """
+  mapping= {n : (idx + start) for idx, n in enumerate(list(graph_nx.nodes()))}
+
+  return nx.relabel.relabel_nodes(graph_nx, mapping, copy= True), mapping
+

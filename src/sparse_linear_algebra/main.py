@@ -6,8 +6,7 @@ from ..reporting_tools import reporting_tools
 from .. import common_classes
 from .. import ac_eval
 from .. import useful_methods
-from ..optimization.write_to_file import relabel_nodes_with_contiguous_numbers
-from ..new_arch.partition import status_node, layer_wise_partition_ASAP, CompileConfig
+from ..super_layer_generation.partition import status_node, layer_wise_partition_ASAP, CompileConfig
 
 import time
 import math
@@ -295,7 +294,7 @@ class SparseTriangularSolve():
     graph_nx.remove_edges_from(nx.selfloop_edges(graph_nx))
 
     if start_from != None:
-      graph_nx, _ = relabel_nodes_with_contiguous_numbers(graph_nx, start=start_from)
+      graph_nx, _ = useful_methods.relabel_nodes_with_contiguous_numbers(graph_nx, start=start_from)
       # graph_obj= common_classes.GraphClass(id_iter= itertools.count(start_from))
     # else:
       # graph_obj= common_classes.GraphClass(id_iter= itertools.count(0))

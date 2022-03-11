@@ -8,7 +8,6 @@ import networkx as nx
 from . import common_classes
 from .reporting_tools import reporting_tools
 from . import graph_init
-from . import evidence_analysis
 from . import FixedPointImplementation 
 from enum import Enum
 
@@ -105,10 +104,6 @@ class PrecisionConfig():
       assert 0
 
     return result
-
-def ac_eval_with_evidence(graph, BN, final_node, evidence_dict, leaf_list, elim_op= 'SUM', **kwargs):
-  evidence_analysis.set_evidence_in_AC(graph, BN, evidence_dict, leaf_list)
-  return ac_eval(graph, final_node, elim_op, **kwargs)
 
 def ac_eval_non_recurse(graph, graph_nx, final_node= None, precision_obj= PrecisionConfig()):
   topological_list= list(nx.algorithms.dag.topological_sort(graph_nx))

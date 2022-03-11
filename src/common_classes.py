@@ -5,6 +5,14 @@ import itertools
 import math
 
 from . import useful_methods
+from .useful_methods import clog2
+
+import logging
+logging.basicConfig(format='%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s', level=logging.INFO)
+# logging.basicConfig(level=logging.INFO)
+logger= logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 
 class OPERATOR():
   PRODUCT= 1
@@ -178,6 +186,23 @@ class GraphClass():
     "set computed status of leaf nodes and clear for rest"
     for obj in list(graph.values()):
       obj.computed= obj.is_leaf()
+
+class ConfigObjTemplates():
+  def __init__(self):
+    pass
+
+  def graph_init(self, 
+      name = "asia",
+      cir_type = "ac",
+      graph_mode= "fine",
+    ):
+
+    assert cir_type in ["ac", "psdd", "log", "sp_trsv"]
+    assert graph_mode in ["FINE", "COARSE"]
+
+    self.cir_type= cir_type
+    self.graph_mode= graph_mode
+    self.name= name
 
 #******    
 #** Models a node in the AC 
@@ -872,11 +897,14 @@ class io_node_details():
     # reg_pos
     self.pos= None
 
+  def print_details(self):
+    print(f"node: {self.node_id}, bank, pos: {self.bank}, {self.pos}")
+
 class instr():
   id_iter= itertools.count()
 
   def __init__(self,name):
-    self.isa= ['bb', 'nop', 'nop_stall', 'ld', 'ld_sc', 'st', 'sh', 'st_2', 'st_4', 'sh_2', 'sh_4', 'sh_8']
+    self.isa= ['bb', 'nop', 'nop_stall', 'ld', 'ld_sc', 'st', 'sh', 'st_4', 'st_8', 'sh_2', 'sh_4', 'sh_8']
     assert name in self.isa, 'Incorrect name check: ' + str(name)
 
     self.name= name
@@ -899,6 +927,7 @@ class instr():
     elif instr.is_type('sh'):
     elif instr.is_type('sh_2'):
     elif instr.is_type('sh_4'):
+    elif instr.is_type('sh_8'):
     elif instr.is_type('bb'):
     else:
       assert False
@@ -912,12 +941,21 @@ class instr():
     else:
       return False
 
+  def print_details(self):
+    logger.info(f"instruction type and id: {self.name} {self.id}")
+
 class nop_instr(instr):
   def __init__(self):
    instr.__init__(self, 'nop') 
 
   def reg_input(self):
     return {}
+
+  def len_w_and_wo_auto_wr_addr(self, d, b, r):
+    instr_len = 4
+    instr_len_wo_opt = instr_len 
+
+    return instr_len, instr_len_wo_opt
 
 class ld_sc_instr(instr):
   """
@@ -937,6 +975,12 @@ class ld_sc_instr(instr):
   def reg_input(self):
     return {} 
 
+  def len_w_and_wo_auto_wr_addr(self, d, b, r):
+    instr_len = 4 + 32 + b
+    instr_len_wo_opt = instr_len + b * clog2(r) 
+
+    return instr_len, instr_len_wo_opt
+
 class ld_instr(instr):
   def __init__(self):
    instr.__init__(self, 'ld') 
@@ -951,6 +995,13 @@ class ld_instr(instr):
 
   def reg_input(self):
     return {}
+
+  def len_w_and_wo_auto_wr_addr(self, d, b, r):
+    instr_len = 4 + 32 + b
+    instr_len_wo_opt = instr_len + b * clog2(r) 
+
+    return instr_len, instr_len_wo_opt
+
 
 class st_instr(instr):
   def __init__(self):
@@ -967,6 +1018,23 @@ class st_instr(instr):
   def reg_input(self):
     assert len(self.node_set) == len(list(self.node_details_dict.keys()))
     return {node: obj.bank for node, obj in list(self.node_details_dict.items())}
+
+  def is_type(self, name):
+    return_val= instr.is_type(self, name)
+
+    if return_val:
+      if name == 'st_4':
+        assert len(self.node_set) <= 4
+      elif name == 'st_8':
+        assert len(self.node_set) <= 8
+
+    return return_val
+
+  def len_w_and_wo_auto_wr_addr(self, d, b, r):
+    instr_len = 4 + 32 + b + b * clog2(r) 
+    instr_len_wo_opt = instr_len 
+
+    return instr_len, instr_len_wo_opt
 
 class bb_instr(instr):
   def __init__(self):
@@ -991,6 +1059,34 @@ class bb_instr(instr):
   def reg_input(self):
     return {node: obj.bank for node, obj in list(self.in_node_details_dict.items())}
 
+  def len_w_and_wo_auto_wr_addr(self, d, b, r):
+    n_tree = int(b / (2**d))
+    instr_len = 4 + b + b + b * clog2(r) + b * clog2(b) + b * clog2(d) + (n_tree * ((2**d) - 1)) * 2
+    instr_len_wo_opt = instr_len + b * clog2(r)
+
+    return instr_len, instr_len_wo_opt
+
+  
+  def print_details(self):
+    logger.info(f"instruction type and id: {self.name} {self.id}")
+    print(f"required_nodes: {self.required_nodes}")
+    print(f"produced_nodes: {self.produced_nodes}")
+    print(f"bb_id: {self.bb_id}")
+    print(f"output_to_pe: {self.output_to_pe}")
+    print(f"invalidate_node_set: {self.invalidate_node_set}")
+    
+    for n , obj in self.in_node_details_dict.items():
+      print("in_node_details_dict:")
+      obj.print_details()
+
+    for n , obj in self.out_node_details_dict.items():
+      print("out_node_details_dict:")
+      obj.print_details()
+
+    for pe_tup, obj in self.pe_details.items():
+      if obj.node != None:
+        obj.print_details()
+
 class pe_details():
   def __init__(self, pe_tup):
     self.pe= pe_tup # (t, lvl, pe) # lvl starts from 1 and not 0
@@ -1010,15 +1106,15 @@ class pe_details():
     self.output_reg= None
 
   def set_op(self, operation):
-    assert operation in ['sum', 'prod', 'pass_0'], "'operation' argument should be one of these"
+    assert operation in ['sum', 'prod', 'pass_0', 'pass_1'], "'operation' argument should be one of these"
     if operation == 'sum':
       self.__op_type = self.__SUM
     if operation == 'prod':
       self.__op_type = self.__PROD
     if operation == 'pass_0':
       self.__op_type = self.__PASS_0
-#    if operation == 'pass_1':
-#      self.__op_type = self.__PASS_1
+    if operation == 'pass_1':
+      self.__op_type = self.__PASS_1
 
   def is_leaf(self):
     if self.pe[1] == 1: # PEs at level 1 are leaf nodes
@@ -1048,6 +1144,15 @@ class pe_details():
     if self.__op_type == self.__PASS_1:
       return True
     return False
+
+  def print_details(self):
+    print(f"pe_tup : {self.pe}")
+    print(f"node : {self.node}")
+    print(f"__op_type : {self.__op_type}")
+    print(f"input_0_reg : {self.input_0_reg}")
+    print(f"input_1_reg : {self.input_1_reg}")
+    print(f"output_reg : {self.output_reg}")
+
 class sh_instr(instr):
   def __init__(self, sh_type, instr_id):
     instr.__init__(self, 'sh') 
@@ -1081,6 +1186,32 @@ class sh_instr(instr):
       self.sh_type= self.__LD
     else:
       assert 0
+  
+  def is_type(self, name):
+    return_val= instr.is_type(self, name)
+
+    if return_val:
+      if name == 'sh_2':
+        assert len(self.sh_dict_bank) <= 2
+      elif name == 'sh_4':
+        assert len(self.sh_dict_bank) <= 4
+      elif name == 'sh_8':
+        assert len(self.sh_dict_bank) <= 8
+
+    return return_val
+
+  def print_details(self):
+    logger.info(f"instruction type and id: {self.name} {self.id}")
+    logger.info("Nodes shifting: FROM src bank, pos TO dst bank, pos | whether to invalidate src register")
+    for node in self.sh_dict_bank:
+      src_bank, dst_bank = self.sh_dict_bank[node]
+      src_pos, dst_pos = self.sh_dict_pos[node]
+      invalid = (node in self.invalidate_node_set)
+      logger.info(f"node: {node}, FROM {src_bank}, {src_pos} TO {dst_bank}, {dst_pos} | {invalid}")
+
+    logger.info(f"invalidate_node_set nodes: {self.invalidate_node_set}")
+    logging.info(f"sh_type : {self.sh_type}")
+
 
   def insert_sh_bank(self, target_node, src_bank, dst_bank):
     # Ensure there is no read conflict
@@ -1110,6 +1241,12 @@ class sh_instr(instr):
 
   def reg_input(self):
     return {node: src_dst_tup[0] for node, src_dst_tup in list(self.sh_dict_bank.items())}
+
+  def len_w_and_wo_auto_wr_addr(self, d, b, r):
+    instr_len = 4 + b + 4 * clog2(b) + 4 * clog2(r)
+    instr_len_wo_opt = instr_len + 4 * clog2(r) 
+
+    return instr_len, instr_len_wo_opt
 
 class instr_ls():
   def __init__(self):

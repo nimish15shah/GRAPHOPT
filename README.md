@@ -5,7 +5,7 @@ Commands to run the main core algorithms:
 
 `python main.py --tmode sparse_tr_solve_full`
 
-`python main.py --tmode psdd_full`
+`python main.py --tmode psdd_full --net mnist`
 
 Note that the paths to sparse matrix files, psdd etc. have to be setup in ./global.py for the above commands to work.
 

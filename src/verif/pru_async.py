@@ -1,7 +1,6 @@
 import logging as log
 
 from ..useful_methods import clog2, format_hex, printcol
-from ..new_arch import memory_allocation
 
 from .. import FixedPointImplementation as lib
 
@@ -33,85 +32,6 @@ def print_instr_details(list_of_schedules, hw_details):
         
         print(" ")
       printcol("Global barrier : " + str(global_barrier_idx), "red")
-
-def simulate_instr_async(graph, global_var, final_output_nodes, status_dict, list_of_schedules, config_obj):
-  hw_details= config_obj.hw_details
-  N_PE = hw_details.N_PE
-  
-  #processor state
-  reg = [{} for _ in range(N_PE)]
-  local_mem = [{} for _ in range(N_PE)]
-  global_mem = [{} for _ in range(N_PE)]
-
-  debug_map_node_to_val= {}
-
-#  print graph.keys()
-
-  # load leaves
-  for node, obj in list(graph.items()):
-    if obj.is_leaf():
-      val= convert_data(obj.curr_val, hw_details, mode='to')
-      for idx, bank in enumerate(status_dict[node].bank):
-        mem_obj= memory_allocation.create_mem_obj(node, status_dict, bank)
-        #store(status_dict[node], local_mem, global_mem, val)
-        store(mem_obj, local_mem, global_mem, val)
-      debug_map_node_to_val[node]= val
-
-  n_global_barriers= len(list_of_schedules[0])
-  # Itegrate over all PEs before crossing global barriers
-  for global_barrier_idx in range(n_global_barriers): 
-    for pe, pe_schedule in enumerate(list_of_schedules):
-      schedule = pe_schedule[global_barrier_idx]
-      for instr in schedule:
-        out= None
-        if instr.operation == 'sum' or instr.operation == 'prod':
-          in_0= reg[pe][instr.reg_in_0]
-          in_1= reg[pe][instr.reg_in_1]
-
-          out= custom_precision_operation(in_0, in_1, hw_details, instr.operation)
-          #if instr.operation == 'sum': 
-          #  out= in_0 + in_1
-          #elif instr.operation == 'prod': 
-          #  out= in_0 * in_1
-          
-#          print pe, instr.operation, in_0, in_1, out, hex(convert_data(in_0, hw_details, mode='to')), hex(convert_data(in_1, hw_details, mode='to')), hex(convert_data(out, hw_details, mode='to'))
-#          print pe, instr.operation, hex(in_0), hex(in_1), hex(out), convert_data(in_0, hw_details, mode='from'), convert_data(in_1, hw_details, mode='from'), convert_data(out, hw_details, mode='from')
-#          print instr.node, instr.in_0_node, instr.in_1_node, out, instr.operation, instr.reg_o, instr.reg_in_0, instr.reg_in_1
-          assert debug_map_node_to_val[instr.in_0_node] == in_0, [instr.in_0_node, debug_map_node_to_val[instr.in_0_node], in_0]
-          assert debug_map_node_to_val[instr.in_1_node] == in_1, [instr.in_1_node, debug_map_node_to_val[instr.in_1_node], in_1]
-
-          debug_map_node_to_val[instr.node] = out
-
-          reg[pe][instr.reg_o] = out
-
-        if instr.to_load_0:
-          load(instr.load_0_addr, reg, local_mem, global_mem, pe, instr.load_0_reg)
-
-        if instr.to_load_1:
-          load(instr.load_1_addr, reg, local_mem, global_mem, pe, instr.load_1_reg)
-
-        if instr.to_store:
-          assert out != None
-          store(instr.store_addr, local_mem, global_mem, out)
-#    print "Global barrier: ", global_barrier_idx
-
-  # get the output out
-  final_val_dict= {n: read(status_dict[n], local_mem, global_mem) for n in final_output_nodes}
-  
-  if config_obj.write_files:
-    lines= []
-    for n in final_output_nodes:
-      addr= construct_init_data_mem_addr(status_dict[n], hw_details)
-      final_val_replicated= replicate_val(final_val_dict[n], hw_details)
-      line= format_hex(addr, 32) + ' ' + format_hex(final_val_replicated, 32) + '\n'
-      lines.append(line)
-    
-    fname= path_prefix(global_var, config_obj) + '_golden.txt'
-    with open(fname, 'w+') as f:
-      f.writelines(lines)
-  
-  final_val_normal = {n: float(convert_data(final_val_dict[n] , hw_details, mode='from')) for n in final_output_nodes}
-  return final_val_normal
 
 def read(mem_obj, local_mem, global_mem):
   bank= mem_obj.bank
@@ -225,39 +145,6 @@ def replicate_val(val, hw_details):
     concat_val= (concat_val << hw_details.POSIT_L) | val
   
   return concat_val
-
-# Output for SV verification
-def output_data(global_var, graph, status_dict, init_data_class_obj, config_obj):
-  """
-    Format:  memory addr <space> value
-  """
-  wr_lines= []
-  init_leaf_values= []
-
-  for node, obj in list(graph.items()):
-    if obj.is_leaf():
-      val= convert_data(obj.curr_val, config_obj.hw_details, mode= 'to')
-      val= replicate_val(val, config_obj.hw_details)
-      for idx, bank in enumerate(status_dict[node].bank):
-        mem_obj= memory_allocation.create_mem_obj(node, status_dict, bank)
-        #mem_obj= status_dict[node]
-        addr= construct_init_data_mem_addr(mem_obj, config_obj.hw_details)
-
-        #print hex(addr), mem_obj.bank, mem_obj.pos, mem_obj.store_in_local_mem, mem_obj.store_in_global_mem
-        
-        init_leaf_values.append((addr, val))
-        
-
-        line= format_hex(addr, 32) + ' ' + format_hex(val, 32) + '\n'
-        
-        wr_lines.append(line)
-
-  if config_obj.write_files:
-    fname= path_prefix(global_var, config_obj) + '_data.txt'
-    with open(fname, 'w+') as f:
-      f.writelines(wr_lines)
-  
-  init_data_class_obj.init_leaf_values = init_leaf_values
 
 def construct_init_data_mem_addr(mem_obj, hw_details):
   """

@@ -27,10 +27,9 @@ matplotlib.rcParams['font.family'] = 'STIXGeneral'
 
 #**** imports from our codebase *****
 from .. import common_classes
-from .. import scheduling_gather
 from .. import ac_eval
 from .. import useful_methods
-from ..new_arch import partition
+from ..super_layer_generation import partition
 
 def _write_csv(file_name, list_name, mode= 'wb+'):
   with open(file_name, mode) as f:
@@ -54,6 +53,32 @@ def geo_mean_overflow(iterable):
   a = np.log(iterable)
   return np.exp(a.mean())
 
+def assign_reverse_level_graph(graph, graph_nx):
+  for key, obj in list(graph.items()):
+    # reset reverse_level
+    obj.reverse_level= None
+  
+  # Children before parents in the topological_list
+  topological_list= nx.algorithms.dag.topological_sort(graph_nx)
+
+  for node in topological_list:
+    obj= graph[node]
+
+    lvl= 0
+    for child in obj.child_key_list:
+      if graph[child].reverse_level >= lvl:
+        lvl= graph[child].reverse_level + 1
+
+    obj.reverse_level = lvl
+
+  # Sanity check
+  for node, obj in list(graph.items()):
+    child_lvl= set()
+    for child in obj.child_key_list:
+      child_lvl.add(graph[child].reverse_level)
+    
+    if len(child_lvl) != 0:
+      assert obj.reverse_level - 1 in child_lvl
   
 #def create_dot_file(graph, BN, ac_node_list, dot_file_name, option, ac_node):
 def create_dot_file(**kw_args):
@@ -709,7 +734,7 @@ def write_c_for_gpu_cuda_2(file_name, graph, graph_nx, final_node, N_THREADS=64)
   assert len(A)% N_THREADS == 0
 
   
-  scheduling_gather.assign_reverse_level_graph(graph, graph_nx)
+  assign_reverse_level_graph(graph, graph_nx)
   map_lvl_to_nodes= defaultdict(list)
   for node, obj in list(graph.items()):
     map_lvl_to_nodes[obj.reverse_level].append(node)
@@ -888,7 +913,7 @@ def write_c_for_gpu_cuda_3(file_name, graph, graph_nx, final_node, N_THREADS=64,
 
   input_chunks= [input_nodes[i:i+N_THREADS] for i in range(0, len(input_nodes), N_THREADS)]
   
-  scheduling_gather.assign_reverse_level_graph(graph, graph_nx)
+  assign_reverse_level_graph(graph, graph_nx)
   map_lvl_to_nodes= defaultdict(list)
   for node, obj in list(graph.items()):
     map_lvl_to_nodes[obj.reverse_level].append(node)

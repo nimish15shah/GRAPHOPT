@@ -45,15 +45,14 @@ import src.hw_struct_methods
 from src.useful_methods import printcol
 from src.useful_methods import printlog
 import src.verif_helper
-import src.super_layer_gen.partition
+import src.super_layer_generation.partition
 import src.psdd
 import src.openmp.gen_code
 import src.sparse_linear_algebra.main
 import src.sparse_linear_algebra.matrix_names_list
 
 #********
-# Contains methods to analysze the DAG
-# Main function is : full_run()
+# Calls methods to generate superlayers
 #********
 class graph_analysis_c():  
   """ Main class for AC analysis.
@@ -332,7 +331,7 @@ class graph_analysis_c():
           assert 0
 
         for n_threads in n_threads_ls:
-          config_obj = src.super_layer_gen.partition.CompileConfig(name= name.replace('/','_'), N_PE= n_threads, \
+          config_obj = src.super_layer_generation.partition.CompileConfig(name= name.replace('/','_'), N_PE= n_threads, \
               GLOBAL_MEM_DEPTH=GLOBAL_MEM_DEPTH, LOCAL_MEM_DEPTH=LOCAL_MEM_DEPTH, \
               STREAM_LD_BANK_DEPTH= STREAM_LD_BANK_DEPTH, STREAM_ST_BANK_DEPTH= STREAM_ST_BANK_DEPTH, STREAM_INSTR_BANK_DEPTH= STREAM_INSTR_BANK_DEPTH,
               graph_mode= graph_mode,
@@ -369,7 +368,7 @@ class graph_analysis_c():
               self.count_edges(self.graph_nx, list_of_partitions, skip_leafs= True)
           
           if COMBINE_SMALL_LAYERS:
-            list_of_partitions_combined= src.super_layer_gen.partition.combine_small_layers(self.graph_nx, list_of_partitions, COMBINE_LAYERS_THRESHOLD, node_w, config_obj)
+            list_of_partitions_combined= src.super_layer_generation.partition.combine_small_layers(self.graph_nx, list_of_partitions, COMBINE_LAYERS_THRESHOLD, node_w, config_obj)
             if config_obj.graph_mode == config_obj.graph_mode_enum.FINE:
               list_of_partitions_coarse, semi_coarse_g, map_n_to_semi_coarse, map_r_to_nodes_info, map_n_to_r, map_semi_coarse_to_tup = \
                 tr_solve_obj.coarsen_partitions(self.graph, self.graph_nx, list_of_partitions_combined, tr_solve_obj.L_map_r_to_nodes_info)
@@ -423,7 +422,7 @@ class graph_analysis_c():
       node_w= defaultdict(lambda:1)
 
       for n_threads in n_threads_ls:
-        config_obj = src.super_layer_gen.partition.CompileConfig(name= self.net, N_PE= n_threads, partition_mode= partition_mode, sub_partition_mode=sub_partition_mode, run_mode= run_mode, write_files= write_files, global_var= global_var)
+        config_obj = src.super_layer_generation.partition.CompileConfig(name= self.net, N_PE= n_threads, partition_mode= partition_mode, sub_partition_mode=sub_partition_mode, run_mode= run_mode, write_files= write_files, global_var= global_var)
 
         self.async_partition(name, self.graph, self.graph_nx, node_w, config_obj)
 
@@ -463,9 +462,12 @@ class graph_analysis_c():
         'baudio',
         'pumsb_star',
       ]
+      name_list= [
+        'mnist'
+      ]
 
       # n_threads_ls= [2,4,8,16,32,64]
-      n_threads_ls= [64]
+      n_threads_ls= [2]
       for name in name_list:
         logger.info(f'matrix name: {name}')
 
@@ -504,14 +506,15 @@ class graph_analysis_c():
 
         # partition generation
         # write_files= True
-        # GEN_PARTITIONS= True
+        GEN_PARTITIONS= True
 
         # openmp generation
-        READ_PARTITIONS= True
+        # READ_PARTITIONS= True
         # COMBINE_SMALL_LAYERS= True
         # GEN_OPENMP_CODE= True
 
         path= global_var.PSDD_PATH_PREFIX + name + '.psdd'
+        
         self.graph, self.graph_nx, self.head_node, self.leaf_list, _ = src.psdd.main(path)
         logger.info(f"name, critical path length: {name, nx.algorithms.dag.dag_longest_path_length(self.graph_nx)}")
 
@@ -520,7 +523,7 @@ class graph_analysis_c():
           self.graph[n].computed= True
 
         for n_threads in n_threads_ls:
-          config_obj = src.super_layer_gen.partition.CompileConfig(name= name.replace('/','_'), N_PE= n_threads, \
+          config_obj = src.super_layer_generation.partition.CompileConfig(name= name.replace('/','_'), N_PE= n_threads, \
               GLOBAL_MEM_DEPTH=GLOBAL_MEM_DEPTH, LOCAL_MEM_DEPTH=LOCAL_MEM_DEPTH, \
               STREAM_LD_BANK_DEPTH= STREAM_LD_BANK_DEPTH, STREAM_ST_BANK_DEPTH= STREAM_ST_BANK_DEPTH, STREAM_INSTR_BANK_DEPTH= STREAM_INSTR_BANK_DEPTH,
               graph_mode= graph_mode,
@@ -547,7 +550,7 @@ class graph_analysis_c():
               self.count_edges(self.graph_nx, list_of_partitions, skip_leafs= True)
           
           if COMBINE_SMALL_LAYERS:
-            list_of_partitions= src.super_layer_gen.partition.combine_small_layers(self.graph_nx, list_of_partitions, COMBINE_LAYERS_THRESHOLD, node_w, config_obj)
+            list_of_partitions= src.super_layer_generation.partition.combine_small_layers(self.graph_nx, list_of_partitions, COMBINE_LAYERS_THRESHOLD, node_w, config_obj)
 
           if GEN_OPENMP_CODE:
             dataset= src.files_parser.read_dataset(global_var, name, 'test')
@@ -597,7 +600,7 @@ class graph_analysis_c():
 
       for i in range(10):
         n_threads= 2**i
-      #hw_details= src.super_layer_gen.partition.hw_details_class(N_PE= n_threads)
+      #hw_details= src.super_layer_generation.partition.hw_details_class(N_PE= n_threads)
         in_path= ld_prefix + self.net + '_' + str(n_threads) + '.p'
         with open(in_path, 'rb+') as fp:
           list_of_partitions= pickle.load(fp)
@@ -644,7 +647,7 @@ class graph_analysis_c():
       logger.warning("Writing partitions to files")
 
     if config_obj.hw_details.N_PE > 1:
-      list_of_partitions , status_dict = src.super_layer_gen.partition.global_barriers(name, graph, graph_nx, node_w, config_obj)
+      list_of_partitions , status_dict = src.super_layer_generation.partition.global_barriers(name, graph, graph_nx, node_w, config_obj)
       edge_crossing= 0
       for node, obj in graph.items():
         if not obj.is_leaf():
