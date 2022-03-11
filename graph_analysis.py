@@ -37,33 +37,17 @@ logger.setLevel(logging.INFO)
 import src.common_classes
 import src.reporting_tools.reporting_tools
 import src.graph_init
-import src.analysis_depth_comm_child
-import src.analysis_node_reuse
 import src.useful_methods
 import src.ac_eval
-import src.evidence_analysis
-import src.decompose
 import src.FixedPointImplementation as FixedPointImplementation
 import src.files_parser
-import src.energy
-import src.bank_allocate
-import src.scheduling_gather
-import src.partition
 import src.hw_struct_methods
-import src.logistic_circuits
-import src.explore
 from src.useful_methods import printcol
 from src.useful_methods import printlog
-import src.gui
 import src.verif_helper
-import src.new_arch.partition
+import src.super_layer_gen.partition
 import src.psdd
-import src.milp_optimization
-import src.optimization.pipeline_scheduling_or
-import src.optimization.write_to_file
-import src.optimization.pe_bank_allocate
 import src.openmp.gen_code
-# import src.cuda.gen_code
 import src.sparse_linear_algebra.main
 import src.sparse_linear_algebra.matrix_names_list
 
@@ -315,7 +299,6 @@ class graph_analysis_c():
         GEN_PARTITIONS= False
         READ_PARTITIONS= False
         COMBINE_SMALL_LAYERS= False
-        GEN_SV_VERIF_FILES= False
         GEN_OPENMP_CODE= False
 
         # partition generation
@@ -326,8 +309,6 @@ class graph_analysis_c():
         READ_PARTITIONS= True
         # COMBINE_SMALL_LAYERS= True
         # GEN_OPENMP_CODE= True
-
-        # GEN_SV_VERIF_FILES= True
 
         # if partition_mode == 'TWO_WAY_PARTITION':
         #   self.graph= tr_solve_obj.L_coarse_graph_obj.graph
@@ -351,7 +332,7 @@ class graph_analysis_c():
           assert 0
 
         for n_threads in n_threads_ls:
-          config_obj = src.new_arch.partition.CompileConfig(name= name.replace('/','_'), N_PE= n_threads, \
+          config_obj = src.super_layer_gen.partition.CompileConfig(name= name.replace('/','_'), N_PE= n_threads, \
               GLOBAL_MEM_DEPTH=GLOBAL_MEM_DEPTH, LOCAL_MEM_DEPTH=LOCAL_MEM_DEPTH, \
               STREAM_LD_BANK_DEPTH= STREAM_LD_BANK_DEPTH, STREAM_ST_BANK_DEPTH= STREAM_ST_BANK_DEPTH, STREAM_INSTR_BANK_DEPTH= STREAM_INSTR_BANK_DEPTH,
               graph_mode= graph_mode,
@@ -387,22 +368,8 @@ class graph_analysis_c():
 
               self.count_edges(self.graph_nx, list_of_partitions, skip_leafs= True)
           
-          elif GEN_SV_VERIF_FILES:
-            try:
-              status_dict, list_of_schedules, hw_details, _ = src.new_arch.partition.main(self.global_var, name, self.graph, self.graph_nx, node_w, config_obj, final_output_nodes, verbose=False)
-              # head_node= tr_solve_obj.L_map_x_to_node[tr_solve_obj.ncols - 1]
-              # print(head_node, max(list(self.graph.keys())))
-              # assert not self.graph[head_node].is_leaf()
-              src.verif_helper.pru_async(self.global_var, self.graph, self.graph_nx, final_output_nodes, status_dict, list_of_schedules, config_obj)
-            except OverflowError:
-              print("Out of memory!!")
-              out_of_mem_ls.append(name)
-            except KeyError: # remove this later
-              print("ERROR: Some random key error")
-
-          # COMBINE_LAYERS_THRESHOLD *= n_threads
           if COMBINE_SMALL_LAYERS:
-            list_of_partitions_combined= src.new_arch.partition.combine_small_layers(self.graph_nx, list_of_partitions, COMBINE_LAYERS_THRESHOLD, node_w, config_obj)
+            list_of_partitions_combined= src.super_layer_gen.partition.combine_small_layers(self.graph_nx, list_of_partitions, COMBINE_LAYERS_THRESHOLD, node_w, config_obj)
             if config_obj.graph_mode == config_obj.graph_mode_enum.FINE:
               list_of_partitions_coarse, semi_coarse_g, map_n_to_semi_coarse, map_r_to_nodes_info, map_n_to_r, map_semi_coarse_to_tup = \
                 tr_solve_obj.coarsen_partitions(self.graph, self.graph_nx, list_of_partitions_combined, tr_solve_obj.L_map_r_to_nodes_info)
@@ -456,7 +423,7 @@ class graph_analysis_c():
       node_w= defaultdict(lambda:1)
 
       for n_threads in n_threads_ls:
-        config_obj = src.new_arch.partition.CompileConfig(name= self.net, N_PE= n_threads, partition_mode= partition_mode, sub_partition_mode=sub_partition_mode, run_mode= run_mode, write_files= write_files, global_var= global_var)
+        config_obj = src.super_layer_gen.partition.CompileConfig(name= self.net, N_PE= n_threads, partition_mode= partition_mode, sub_partition_mode=sub_partition_mode, run_mode= run_mode, write_files= write_files, global_var= global_var)
 
         self.async_partition(name, self.graph, self.graph_nx, node_w, config_obj)
 
@@ -533,7 +500,6 @@ class graph_analysis_c():
         GEN_PARTITIONS= False
         READ_PARTITIONS= False
         COMBINE_SMALL_LAYERS= False
-        GEN_SV_VERIF_FILES= False
         GEN_OPENMP_CODE= False
 
         # partition generation
@@ -545,8 +511,6 @@ class graph_analysis_c():
         # COMBINE_SMALL_LAYERS= True
         # GEN_OPENMP_CODE= True
 
-        # GEN_SV_VERIF_FILES= True
-
         path= global_var.PSDD_PATH_PREFIX + name + '.psdd'
         self.graph, self.graph_nx, self.head_node, self.leaf_list, _ = src.psdd.main(path)
         logger.info(f"name, critical path length: {name, nx.algorithms.dag.dag_longest_path_length(self.graph_nx)}")
@@ -556,7 +520,7 @@ class graph_analysis_c():
           self.graph[n].computed= True
 
         for n_threads in n_threads_ls:
-          config_obj = src.new_arch.partition.CompileConfig(name= name.replace('/','_'), N_PE= n_threads, \
+          config_obj = src.super_layer_gen.partition.CompileConfig(name= name.replace('/','_'), N_PE= n_threads, \
               GLOBAL_MEM_DEPTH=GLOBAL_MEM_DEPTH, LOCAL_MEM_DEPTH=LOCAL_MEM_DEPTH, \
               STREAM_LD_BANK_DEPTH= STREAM_LD_BANK_DEPTH, STREAM_ST_BANK_DEPTH= STREAM_ST_BANK_DEPTH, STREAM_INSTR_BANK_DEPTH= STREAM_INSTR_BANK_DEPTH,
               graph_mode= graph_mode,
@@ -583,7 +547,7 @@ class graph_analysis_c():
               self.count_edges(self.graph_nx, list_of_partitions, skip_leafs= True)
           
           if COMBINE_SMALL_LAYERS:
-            list_of_partitions= src.new_arch.partition.combine_small_layers(self.graph_nx, list_of_partitions, COMBINE_LAYERS_THRESHOLD, node_w, config_obj)
+            list_of_partitions= src.super_layer_gen.partition.combine_small_layers(self.graph_nx, list_of_partitions, COMBINE_LAYERS_THRESHOLD, node_w, config_obj)
 
           if GEN_OPENMP_CODE:
             dataset= src.files_parser.read_dataset(global_var, name, 'test')
@@ -595,46 +559,8 @@ class graph_analysis_c():
             batch_sz= 1
             src.openmp.gen_code.par_for(outpath,self.graph, self.graph_nx, list_of_partitions, golden_val, batch_sz)
 
-          if GEN_SV_VERIF_FILES:
-            try:
-              status_dict, list_of_schedules, hw_details, _ = src.new_arch.partition.main(self.global_var, name, self.graph, self.graph_nx, node_w, config_obj, set([self.head_node]), verbose=False)
-              # head_node= tr_solve_obj.L_map_x_to_node[tr_solve_obj.ncols - 1]
-              # print(head_node, max(list(self.graph.keys())))
-              # assert not self.graph[head_node].is_leaf()
-              src.verif_helper.pru_async(self.global_var, self.graph, self.graph_nx, set([self.head_node]), status_dict, list_of_schedules, config_obj)
-            except OverflowError:
-              print("Out of memory!!")
-              out_of_mem_ls.append(name)
-            except KeyError: # remove this later
-              print("ERROR: Some random key error")
-
       exit(1)
           
-    if mode == 'compile_for_async_arch':
-      # Compiler for new arch
-      N_PE= int(args.targs[0])
-
-      partition_mode= args.targs[1]
-      assert partition_mode in ['HEURISTIC', 'TWO_WAY_PARTITION', 'LAYER_WISE']
-
-      run_mode= args.targs[2]
-      assert run_mode in ['full', 'resume'], run_mode
-      
-      if partition_mode == 'LAYER_WISE':
-        assert run_mode != 'resume'
-      
-      GLOBAL_MEM_DEPTH= 8192
-      LOCAL_MEM_DEPTH= 4096
-
-      config_obj = src.new_arch.partition.CompileConfig(name= self.net, N_PE= N_PE, GLOBAL_MEM_DEPTH= GLOBAL_MEM_DEPTH, LOCAL_MEM_DEPTH= LOCAL_MEM_DEPTH, partition_mode= partition_mode, run_mode= run_mode)
-      node_w= defaultdict(lambda:1)
-      status_dict, list_of_schedules, hw_details, _ = src.new_arch.partition.main(self.global_var, self.net, self.graph, self.graph_nx, node_w, config_obj, nodes_to_store= set([self.head_node]))
-
-      self.global_var.PRU_ASYNC_VERIF_PATH += f'tb_data_{partition_mode}/{self.net}'
-      src.verif_helper.pru_async(self.global_var, self.graph, self.head_node, status_dict, list_of_schedules, hw_details, write_files= True)
-
-      exit(0)
-
     if mode == 'openmp':
       # Compiler for new arch
       store_prefix= '/esat/puck1/users/nshah/cpu_openmp/'
@@ -671,7 +597,7 @@ class graph_analysis_c():
 
       for i in range(10):
         n_threads= 2**i
-      #hw_details= src.new_arch.partition.hw_details_class(N_PE= n_threads)
+      #hw_details= src.super_layer_gen.partition.hw_details_class(N_PE= n_threads)
         in_path= ld_prefix + self.net + '_' + str(n_threads) + '.p'
         with open(in_path, 'rb+') as fp:
           list_of_partitions= pickle.load(fp)
@@ -718,7 +644,7 @@ class graph_analysis_c():
       logger.warning("Writing partitions to files")
 
     if config_obj.hw_details.N_PE > 1:
-      list_of_partitions , status_dict = src.new_arch.partition.global_barriers(name, graph, graph_nx, node_w, config_obj)
+      list_of_partitions , status_dict = src.super_layer_gen.partition.global_barriers(name, graph, graph_nx, node_w, config_obj)
       edge_crossing= 0
       for node, obj in graph.items():
         if not obj.is_leaf():
