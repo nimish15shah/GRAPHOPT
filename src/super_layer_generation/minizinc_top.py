@@ -261,7 +261,7 @@ def two_way_partition_all_layers(net, graph_nx, node_w, status_dict, layer_sets,
   mapped_count = 1
 
   # create model
-  prefix= "/users/micas/nshah/Downloads/PhD/Academic/Bayesian_Networks_project/Hardware_Implementation/Auto_RTL_Generation/HW_files/scripts/graph_analysis_3/src/optimization/minizinc_code/code/async/two_way_partition/"
+  prefix= "./minizinc_models/"
   model_path= prefix + "two_way_partition.mzn"
   two_way_partition_fine = Model(model_path)
 
