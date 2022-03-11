@@ -1,0 +1,35 @@
+
+n_V = 9;
+max_node_w = 1;
+node_w = [1, 1, 1, 1, 1, 1, 1, 1, 1];
+
+n_E = 8;
+E = array2d (1..n_E, 1..2, 
+  [ 1, 5,
+    2, 5,
+    5, 7, 
+    3, 6,
+    4, 6,
+    6, 8, 
+    7, 9,
+    8, 9
+  ]);
+
+n_Vin = 4; 
+n_Ein = 9;
+
+% For ease of modelling Vin are numbered 1,...,4 instead of 10,...,13 as shown in fig. 6
+Ein = array2d (1..n_Ein, 1..2, 
+  [ 1, 1,
+    1, 4,
+    1, 7,
+    2, 1,
+    2, 2,
+    2, 8,
+    3, 2, 
+    3, 8,
+    4, 4
+  ]);
+
+PARTin = [1, 1, 2, 2];
+
