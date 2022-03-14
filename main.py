@@ -96,11 +96,14 @@ def main(argv=None):
     help='Enter the name of the network to be used as an input')
 
   parser.add_argument('--cir_type', type=str, choices=['psdd', 'sp_trsv', 'none'], default='none', help='Specify the type of circuit to be read. Default= ac')
+  
+  parser.add_argument('--threads', type=int, default=2, help='Specify the number of target parallel threads. Default= 2')
 
   parser.add_argument('--tmode', type=str, \
       choices= [\
         'try', \
         'null', \
+        'gen_super_layers', \
         'verif_helper', \
         'ac_eval', \
         'openmp', \

@@ -3,11 +3,13 @@ Constrained-optimization based parallelization of irregular graphs
 
 Commands to run the main core algorithms:
 
-`python main.py --tmode sparse_tr_solve_full`
+`python main.py --tmode gen_super_layers --net <Workload name> --threads <Number of target threads> --cir_type <Type of the workload>`
+ 
+ Examples,
+`python main.py --tmode gen_super_layers --net mnist --threads 4 --cir_type psdd`
 
-`python main.py --tmode psdd_full --net mnist`
-
-Note that the paths to sparse matrix files, psdd etc. have to be setup in ./global.py for the above commands to work.
+Log of the runtime of the parallelized OpenMP code will be created at `./log/run_log_openmp`
+Log of superlayer generation time will be created at `./log/superlayer_gen_time_log`
 
 If you use this repository, please cite out work:
 

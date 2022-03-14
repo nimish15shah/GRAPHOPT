@@ -13,7 +13,6 @@ import numpy as np
 
 import get_sizes
 import logging
-logging.basicConfig(level=logging.INFO)
 logger= logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 

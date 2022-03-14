@@ -28,6 +28,7 @@ class CompileConfig():
                 target_app= None, target_device= None, 
                 run_mode= None, write_files= None, global_var= None):
     
+    self.global_var= global_var
     self.name= name
     self.hw_details= hw_details_class(N_PE, GLOBAL_MEM_DEPTH, LOCAL_MEM_DEPTH, \
           STREAM_LD_BANK_DEPTH, STREAM_ST_BANK_DEPTH, STREAM_INSTR_BANK_DEPTH,
@@ -85,7 +86,7 @@ class CompileConfig():
     else:
       part_len= max(500, part_len)
 
-    logger.info(f'part_len: {part_len}, mean: {l_mean}, median: {l_median}')
+    # logger.info(f'part_len: {part_len}, mean: {l_mean}, median: {l_median}')
     
     return part_len
 
@@ -93,16 +94,12 @@ class CompileConfig():
     return max(lengths)
 
   def get_partitions_file_name(self):
-    # NOTE: CHANGE for disabling optimizations
-    prefix= '/esat/puck1/users/nshah/cpu_gpu_parallel/partitions/'
-    # prefix= '/esat/puck1/users/nshah/cpu_gpu_parallel/partitions/optimizations_experiment/'
+    prefix= self.global_var.PARTITIONS_PATH
     path = prefix + self.common_suffix() + ".p"
     return path
 
   def get_openmp_file_name(self):
-    # NOTE: CHANGE for disabling optimizations
-    prefix= '/esat/puck1/users/nshah/cpu_openmp/'
-    # prefix= '/esat/puck1/users/nshah/cpu_openmp/optimizations_experiment/'
+    prefix= self.global_var.OPENMP_PATH
     path = prefix + self.common_suffix() + ".c"
     return path
 
@@ -120,7 +117,7 @@ class CompileConfig():
 
 
 def output_file_name_spn(global_var, net, partition_mode, n_threads):
-  prefix= '/esat/puck1/users/nshah/'
+  prefix= global_var.NO_BACKUP_PATH
   if partition_mode == 'TWO_WAY_PARTITION':
     prefix += 'two_way_partition_equal_parts/'
   elif partition_mode == 'HEURISTIC':
@@ -154,7 +151,8 @@ class hw_details_class():
     self.STREAM_LD_BANK_DEPTH= STREAM_LD_BANK_DEPTH # words
     self.STREAM_ST_BANK_DEPTH= STREAM_ST_BANK_DEPTH # words
     self.STREAM_INSTR_BANK_DEPTH= STREAM_INSTR_BANK_DEPTH # words
-    self.STREAM_MAX_ADDR_L_PER_BANK= useful_methods.clog2(max(STREAM_LD_BANK_DEPTH, STREAM_ST_BANK_DEPTH, STREAM_INSTR_BANK_DEPTH)) # bits , indicates the size of each (instr, ld, or store) stream bank
+    if STREAM_LD_BANK_DEPTH != None:
+      self.STREAM_MAX_ADDR_L_PER_BANK= useful_methods.clog2(max(STREAM_LD_BANK_DEPTH, STREAM_ST_BANK_DEPTH, STREAM_INSTR_BANK_DEPTH)) # bits , indicates the size of each (instr, ld, or store) stream bank
 
     self.DTYPE= 'posit' # in ['default', 'posit', 'flt']
 
@@ -779,8 +777,8 @@ def global_barriers(net, graph, graph_nx, node_w, config_obj):
     _, layer_sets= layer_wise_partition_ALAP(graph_nx, status_dict, config_obj)
     list_of_partitions, run_time = minizinc_top.two_way_partition_all_layers(net, graph_nx, node_w, status_dict, layer_sets, config_obj)
     # NOTE: CHANGE for disabling optimizations
-    with open('./no_backup/run_time_log', 'a+') as fp:
-      print(f"wo_any_optimization, network, {config_obj.name}, threads, {config_obj.hw_details.N_PE}, run_time (s), {run_time}, timeout, {config_obj.global_time_out}", file=fp, flush= True)
+    with open('./log/superlayer_gen_time_log', 'a+') as fp:
+      print(f"network, {config_obj.name}, threads, {config_obj.hw_details.N_PE}, compile time (s), {run_time}, timeout, {config_obj.global_time_out}", file=fp, flush= True)
 
   elif mode == config_obj.partition_mode_enum.LAYER_WISE:
     # first_partition_list = first_partition(graph,graph_nx, hw_details, status_dict)

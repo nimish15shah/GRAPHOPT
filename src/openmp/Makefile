@@ -18,13 +18,13 @@ run:
 	./no_backup/par_for_sparse_tr_solve 1000
 
 run_psdd:
-	./no_backup/par_for_v2 100000
+	./par_for_v2 10000
 
 normal_cpp:
 	g++ -std=c++11 -fopenmp -march=native ${FLAGS} ${FILE} -o ${OUT_FILE}
 
 normal_cpp_psdd:
-	g++ -std=c++11 -fopenmp -march=native ${FLAGS} par_for_v2.cpp -o ./no_backup/par_for_v2
+	g++ -std=c++11 -fopenmp -march=native ${FLAGS} par_for_v2.cpp -o par_for_v2
 
 normal_cpp_large:
 	g++ -std=c++11 -fopenmp -march=native ${FLAGS} ${FILE} ${LARGE_FLAGS} -o ${OUT_FILE}

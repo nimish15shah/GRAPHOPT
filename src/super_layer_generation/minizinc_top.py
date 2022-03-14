@@ -23,6 +23,7 @@ import networkx as nx
 from ..reporting_tools import reporting_tools
 from typing import Mapping, MutableMapping, MutableSequence, Sequence, Iterable, List, Set, Dict
 
+logging.basicConfig(format='%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s', level=logging.INFO)
 logger= logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 # logger.setLevel(logging.WARNING)
@@ -100,7 +101,7 @@ def dfs_traversal(graph_nx, map_v_to_reverse_lvl: Mapping):
   return node_list, diff_list
 
 def create_chunks(node_list, diff_list, graph_nx, diff_threshold, chunk_len_threshold, out_degree_threshold):
-  logger.info("Coarsening the graph")
+  # logger.info("Coarsening the graph")
   assert len(node_list) == len(diff_list)
   leaf_ls= useful_methods.get_leaves(graph_nx)
 
@@ -141,14 +142,14 @@ def create_coarse_graph(graph_nx, diff_threshold, chunk_len_threshold, out_degre
 
   start= time.time()
   node_list, diff_list= dfs_traversal(graph_nx, map_v_to_reverse_lvl)
-  logger.info(f"A: {time.time() - start}")
+  # logger.info(f"A: {time.time() - start}")
 
   start= time.time()
 
   chunks= create_chunks(node_list, diff_list, graph_nx, diff_threshold, chunk_len_threshold, out_degree_threshold)
-  logger.info(f"B: {time.time() - start}")
+  # logger.info(f"B: {time.time() - start}")
   
-  logger.info(f"Number of chunks: {len(chunks)}, number of nodes: {len(graph_nx)}")
+  # logger.info(f"Number of chunks: {len(chunks)}, number of nodes: {len(graph_nx)}")
   start= time.time()
   # nodes
   coarse_graph_nx= nx.DiGraph()
@@ -187,10 +188,10 @@ def create_coarse_graph(graph_nx, diff_threshold, chunk_len_threshold, out_degre
   if len(graph_nx) < 10000 and COSTLY_ASSERTION:
     before_len= nx.algorithms.dag.dag_longest_path_length(graph_nx)
     after_len= nx.algorithms.dag.dag_longest_path_length(coarse_graph_nx)
-    logger.info(f"longest path len before: {before_len} after: {after_len}")
+    # logger.info(f"longest path len before: {before_len} after: {after_len}")
 
-  logger.info(f"C: {time.time() - start}")
-  logger.info(f"number of edges before: {graph_nx.number_of_edges()} after: {coarse_graph_nx.number_of_edges()}")
+  # logger.info(f"C: {time.time() - start}")
+  # logger.info(f"number of edges before: {graph_nx.number_of_edges()} after: {coarse_graph_nx.number_of_edges()}")
 
   return coarse_graph_nx, map_coarse_node_to_set, map_node_to_coarse_node
 
@@ -208,7 +209,7 @@ class Limit_layers_handling():
     # self.limit= self.MAX_NODES_LIMIT
     # self.limit= 40_000
 
-    logger.info(f"limit: {self.limit},  mean: {self.mean_nodes_per_layer}")
+    # logger.info(f"limit: {self.limit},  mean: {self.mean_nodes_per_layer}")
 
     # assert self.mean_nodes_per_layer <= self.MAX_NODES_LIMIT, f" {self.mean_nodes_per_layer}, {self.MAX_NODES_LIMIT}, Use TWO_WAY_FULL with coarsening instead of TWO_WAY_LIMIT_LAYERS mode because layers are too big"
   
@@ -260,6 +261,9 @@ def two_way_partition_all_layers(net, graph_nx, node_w, status_dict, layer_sets,
   done_sets= [set() for _ in range(N_PE)]
   mapped_count = 1
 
+  logger.info(f"Using {max(1, int(1* multiprocessing.cpu_count()/2))} CPU threads for executing Google OR-Tools solver")
+  printcol(f"Using {max(1, int(1* multiprocessing.cpu_count()/2))} CPU threads for executing Google OR-Tools solver", 'red')
+
   # create model
   prefix= "./minizinc_models/"
   model_path= prefix + "two_way_partition.mzn"
@@ -299,6 +303,8 @@ def two_way_partition_all_layers(net, graph_nx, node_w, status_dict, layer_sets,
     running_avg_obj = RunningAverage(get_w(nodes_to_map, node_w)/N_PE, N_PE)
     layer_parts= {pe:set() for pe in pe_tup}
     tried_partitioning= set()
+    printcol(f'Trying to map {len(nodes_to_map)} nodes to {len(pe_tup)} threads', 'green')
+
     mapped_count, mapped_nodes, curr_partition= partition_considering_connectivity(net, curr_done_sets, done_nodes, pe_tup, nodes_to_map, graph_nx, node_w, two_way_partition_fine, two_way_partition_coarse, do_equalize, running_avg_obj, layer_parts, tried_partitioning, config_obj)
 
     done_sets= [curr_set | curr_partition[i] for i, curr_set in enumerate(done_sets)]
@@ -315,8 +321,7 @@ def two_way_partition_all_layers(net, graph_nx, node_w, status_dict, layer_sets,
       new_done_sets.append(new_curr_set)
     done_sets = new_done_sets
 
-    logger.info("Total nodes mapped in curr layer: {}".format(mapped_count))
-    logger.info("Total operations in curr layer: {}".format(get_w(mapped_nodes, node_w)))
+    logger.info(f"Total mapping to curr super layer: nodes: {mapped_count}, operations: {get_w(mapped_nodes, node_w)}")
     nodes_to_map -= mapped_nodes
     if config_obj.sub_partition_mode == config_obj.sub_partition_mode_enum.TWO_WAY_LIMIT_LAYERS:
       # update limit depending on the last allocation
@@ -326,8 +331,8 @@ def two_way_partition_all_layers(net, graph_nx, node_w, status_dict, layer_sets,
       limit_layers_obj.append_new_layers(nodes_to_map, done_nodes)
     mapped_count_list.append(mapped_count)
 
-    logger.info(f"Total mapped: {mapped_count_list}")
-    logger.info(f"To be mapped: {sum(mapped_count_list) - how_many_to_map}")
+    logger.info(f"Total nodes mapped to superlayers so far: {mapped_count_list}. Nodes yet to be mapped: {how_many_to_map - sum(mapped_count_list)}")
+    printcol("A superlayer is generated", 'red')
     for pe in range(N_PE):
       list_of_partitions[pe].append(curr_partition[pe])
       for n in curr_partition[pe]:
@@ -341,7 +346,8 @@ def two_way_partition_all_layers(net, graph_nx, node_w, status_dict, layer_sets,
         print(f"network, {config_obj.name}, threads, {config_obj.hw_details.N_PE}, run_time (s), {run_time} TIMEOUT, timeout, {config_obj.global_time_out}", file=fp, flush= True)
       exit(1)
 
-  print(mapped_count_list)
+  logger.info(f"Total super layers: {len(mapped_count_list)}")
+  logger.info(f"Nodes mapped to individual super layers: {mapped_count_list}")
   assert sum(mapped_count_list) == how_many_to_map, "{} {}".format(sum(mapped_count_list), how_many_to_map)
   assert len(done_nodes) == len(graph_nx)
 
@@ -364,12 +370,12 @@ class RunningAverage():
     self.running_avg= expected_avg
     self.N_PE= N_PE
   def update_avg(self, n_curr_pes, tot_nodes_mapped):
-    logger.info(f"Updating running average: old: {self.running_avg}, n_curr_pes: {n_curr_pes}, tot_nodes_mapped: {tot_nodes_mapped}")
+    # logger.info(f"Updating running average: old: {self.running_avg}, n_curr_pes: {n_curr_pes}, tot_nodes_mapped: {tot_nodes_mapped}")
     curr_avg= tot_nodes_mapped/n_curr_pes
     a= 1.0/self.N_PE * n_curr_pes
     b= 1.0/self.N_PE * (self.N_PE - n_curr_pes)
     self.running_avg = b * self.running_avg + a *curr_avg
-    logger.info(f"new average: {self.running_avg}")
+    # logger.info(f"new average: {self.running_avg}")
   
   def lower_threshold(self):
     return 0.8 * self.running_avg
@@ -420,7 +426,7 @@ def partition_considering_connectivity(net, done_sets, done_nodes, pe_tup, nodes
   components= list(nx.weakly_connected_components(graph_nx.subgraph(nodes_to_map)))
 
   components= sorted(components, key = lambda x: get_w(x, node_w), reverse= True)
-  logger.info(f"component len: {[len(component) for component in components]}")
+  # logger.info(f"component len: {[len(component) for component in components]}")
 
   remaining_pes= set(pe_tup)
   curr_nodes_to_map= set()
@@ -451,15 +457,16 @@ def partition_considering_connectivity(net, done_sets, done_nodes, pe_tup, nodes
         curr_nodes_to_map= nodes_to_map
 
       if len(chosen_pes) == 0: # only 0 pe chosen
-        logger.info(f"No PEs available to map {len(curr_nodes_to_map)} nodes. Unbalanced distribution")
+        pass
+        # logger.info(f"No PEs available to map {len(curr_nodes_to_map)} nodes. Unbalanced distribution")
 
       elif len(chosen_pes) == 1: # only 1 pe chosen
-        logger.info(f"Mapping {len(curr_nodes_to_map)} nodes to a single PE: {chosen_pes[0]}")
+        # logger.info(f"Mapping {len(curr_nodes_to_map)} nodes to a single PE: {chosen_pes[0]}")
         layer_parts[chosen_pes[0]] |= curr_nodes_to_map
         local_layer_parts[chosen_pes[0]] |= curr_nodes_to_map
 
       else: # multiple pes remaining
-        logger.info(f"Mapping {len(curr_nodes_to_map)} nodes to a multiple PEs: {chosen_pes}")
+        # logger.info(f"Mapping {len(curr_nodes_to_map)} nodes to a multiple PEs: {chosen_pes}")
         _ , _ , curr_partition= two_way_partition_one_layer_non_binary(net, done_sets, done_nodes, tuple(chosen_pes), 
             curr_nodes_to_map, graph_nx, node_w, model_fine, model_coarse, False, running_avg_obj, layer_parts, tried_partitioning, config_obj, DO_NOT_CONSIDER_COMPONENTS)
 
@@ -490,14 +497,13 @@ def partition_considering_connectivity(net, done_sets, done_nodes, pe_tup, nodes
     layer_parts= reshuffle_to_increase_local_edges(graph_nx, layer_parts, done_sets, done_nodes)
 
     lengths= [len(layer_parts[pe]) for pe in pe_tup]
-    print(f"lenghts before equalizing: {lengths}")
-    logger.info(f"lenghts before equalizing: {lengths}")
+    # logger.info(f"lenghts before equalizing: {lengths}")
     layer_parts= equalize_parts_redistribute(graph_nx, node_w, layer_parts, done_nodes, done_sets, model_fine, model_coarse, tried_partitioning, config_obj)
 
     # check if simple leaves partitioning is better
     all_len= sum([get_w(p, node_w) for p in layer_parts.values()]) 
     if all_len < 0.8 * get_w(leaves, node_w):
-      logger.info(f"Resorting to simple leaves partition instead of two_way_partition: {all_len}, {len(leaves)}")
+      # logger.info(f"Resorting to simple leaves partition instead of two_way_partition: {all_len}, {len(leaves)}")
       layer_parts = partition_leaves(pe_tup, leaves, graph_nx, node_w, done_sets)
 
     # shuffle to reduce global edges      
@@ -512,14 +518,11 @@ def partition_considering_connectivity(net, done_sets, done_nodes, pe_tup, nodes
   assert len(all_union) == all_len
 
   lengths= [len(layer_parts[pe]) for pe in pe_tup]
-  print(f"lenghts: {lengths}")
-  logger.info(f"lenghts: {lengths}")
-  print(f"tot_nodes mapped: {all_len}")
-  logger.info(f"tot_nodes mapped: {all_len}")
+  # logger.info(f"lenghts: {lengths}")
+  # logger.info(f"tot_nodes mapped: {all_len}")
 
   op_lengths= [get_w(layer_parts[pe], node_w) for pe in pe_tup]
-  print(f"operation lenghts: {op_lengths}")
-  logger.info(f"operation lenghts: {op_lengths}")
+  # logger.info(f"operation lenghts: {op_lengths}")
 
   return all_len, all_union, layer_parts
 
@@ -574,7 +577,7 @@ def reshuffle_to_increase_local_edges(graph_nx, layer_parts, done_sets, done_nod
   assert len(set(list(map_old_to_new_pe_graph.values()))) == len(pe_tup)
 
   tot_inputs= sum([len(inputs) for inputs in map_part_to_inputs.values()])
-  logger.info(f"graph reshuffling: local edges:{matching_weight_graph} out of total incomping edges {tot_inputs}")
+  # logger.info(f"graph reshuffling: local edges:{matching_weight_graph} out of total incomping edges {tot_inputs}")
 
   new_layer_parts= {}
   for old_pe, new_pe in map_old_to_new_pe_graph.items():
@@ -613,18 +616,16 @@ def two_way_partition_one_layer_non_binary(net, done_sets, done_nodes, pe_tup_fu
 
       assert len(done_set_0 & done_set_1) == 0
 
-      printcol(f'tot_nodes: {len(nodes_to_map)} among {len(pe_tup)} PEs', 'green')
-
       leaves= set([])
       for n in nodes_to_map:
         unmapped_pred= [s for s in graph_nx.predecessors(n) if s not in done_nodes]
         if len(unmapped_pred) == 0:
           leaves.add(n)
 
-      print(f'tot leaves: {len(leaves)}')
+      # print(f'tot leaves: {len(leaves)}')
 
       number_weakly_connected_components= nx.number_weakly_connected_components(graph_nx.subgraph(nodes_to_map))
-      logger.info(f"number_weakly_connected_components : {number_weakly_connected_components}")
+      # logger.info(f"number_weakly_connected_components : {number_weakly_connected_components}")
 
       # if only one connected component, go for optimization 
       if number_weakly_connected_components <= 1 or pe_tup == pe_tup_full or DO_NOT_CONSIDER_COMPONENTS:
@@ -645,7 +646,7 @@ def two_way_partition_one_layer_non_binary(net, done_sets, done_nodes, pe_tup_fu
         if len(nodes_to_map) > local_opt_threshold or len(leaves) <= 2:
           curr_part_0, curr_part_1, result = two_way_partition_get_best_result(net, done_set_0, done_set_1, done_nodes, nodes_to_map, graph_nx, node_w, config_obj, model_fine, model_coarse)
         else:
-          logger.info("local_optimization")
+          # logger.info("local_optimization")
           loc_opt_obj= local_optimization.Local_optimization_partition(nodes_to_map, graph_nx, done_set_0, done_set_1, done_nodes, node_w, config_obj)
           curr_part_0, curr_part_1 = loc_opt_obj.get_results()
 
@@ -677,7 +678,7 @@ def two_way_partition_one_layer_non_binary(net, done_sets, done_nodes, pe_tup_fu
         # reset pe_indices_0 and pe_indices_1 based on number of leaf nodes
         leaves_0 = curr_part_0 & leaves
         leaves_1 = curr_part_1 & leaves
-        logger.info(f'leaves distribution : {len(leaves_0)}, {len(leaves_1)}')
+        # logger.info(f'leaves distribution : {len(leaves_0)}, {len(leaves_1)}')
 
         if len(leaves) <= len(pe_tup):
           n_pe_0 = int(len(pe_tup) * len(leaves_0)/len(leaves))
@@ -703,7 +704,7 @@ def two_way_partition_one_layer_non_binary(net, done_sets, done_nodes, pe_tup_fu
         pe_indices_0 = pe_tup[ : n_pe_0]
         pe_indices_1 = pe_tup[ n_pe_0 : ]
 
-        logger.info(f"n_pe_0 : {n_pe_0}, n_pe_1 : {n_pe_1}")
+        # logger.info(f"n_pe_0 : {n_pe_0}, n_pe_1 : {n_pe_1}")
         assert len(pe_indices_0) != 0
         assert len(pe_indices_1) != 0
 
@@ -718,7 +719,6 @@ def two_way_partition_one_layer_non_binary(net, done_sets, done_nodes, pe_tup_fu
         for pe, part in curr_partition.items():
           curr_map_pe_list_to_nodes[tuple([pe])] = part
 
-    printcol("Done iteration", 'red')
     map_pe_list_to_nodes = curr_map_pe_list_to_nodes
     
   # equalize_all parts
@@ -734,14 +734,12 @@ def two_way_partition_one_layer_non_binary(net, done_sets, done_nodes, pe_tup_fu
   assert len(all_union) == all_len
 
   lengths= [(pe,len(layer_parts[pe])) for pe in pe_tup_full]
-  print(f"lenghts: {lengths}")
-  logger.info(f"lenghts: {lengths}")
-  print(f"tot_nodes mapped: {all_len}")
-  logger.info(f"tot_nodes mapped: {all_len}")
+  # logger.info(f"lenghts: {lengths}")
+  # logger.info(f"tot_nodes mapped: {all_len}")
 
   op_lengths= [get_w(layer_parts[pe], node_w) for pe in pe_tup]
-  print(f"operation lenghts: {op_lengths}")
-  logger.info(f"operation lenghts: {op_lengths}")
+  # logger.info(f"operation lenghts: {op_lengths}")
+
 
   return all_len, all_union, layer_parts
 
@@ -787,14 +785,14 @@ def two_way_partition_one_layer(net, done_sets, nodes_not_mapped_until_this_laye
         continue
 
       assert len(done_set_0 & done_set_1) == 0
-      print('tot_nodes:', len(nodes_to_map))
+      # print('tot_nodes:', len(nodes_to_map))
       leaves= [n for n in nodes_to_map if len(set(graph_nx.predecessors(n)) & nodes_to_map) == 0]
-      print(f'tot leaves: {len(leaves)}')
+      # print(f'tot leaves: {len(leaves)}')
       curr_part_0, curr_part_1, result = two_way_partition_get_best_result(net, done_set_0, done_set_1, done_nodes, nodes_to_map, graph_nx, node_w, config_obj, model_fine, model_coarse)
 
       process_output(graph_nx, curr_part_0, curr_part_1, pe_indices_0, pe_indices_1, layer_parts, curr_parts, done_sets, mode= 'binary')
 
-    printcol("Done iteration", 'red')
+    # printcol("Done iteration", 'red')
     last_parts = curr_parts
 
   for pe in range(N_PE):
@@ -817,10 +815,8 @@ def two_way_partition_one_layer(net, done_sets, nodes_not_mapped_until_this_laye
   assert len(all_union) == all_len
 
   lengths= [len(layer_parts[pe]) for pe in range(N_PE)]
-  print(f"lenghts: {lengths}")
-  logger.info(f"lenghts: {lengths}")
-  print(f"tot_nodes mapped: {all_len}")
-  logger.info(f"tot_nodes mapped: {all_len}")
+  # logger.info(f"lenghts: {lengths}")
+  # logger.info(f"tot_nodes mapped: {all_len}")
 
   return all_len, all_union, layer_parts
 
@@ -896,7 +892,7 @@ def equalize_parts_truncate(graph_nx, node_w, all_parts, part_len_heuristic):
       critical_path_len = curr_len
   
   average_active_pe= max(1 , tot_nodes//critical_path_len)
-  logger.info(f"Average active pe: {average_active_pe}, critical_path_len: {critical_path_len}, tot_nodes: {tot_nodes}")
+  # logger.info(f"Average active pe: {average_active_pe}, critical_path_len: {critical_path_len}, tot_nodes: {tot_nodes}")
 
   lengths= sorted([get_w(curr_set, node_w) for curr_set in all_parts.values()], reverse= True)
   lengths= lengths[:average_active_pe]
@@ -979,14 +975,13 @@ def equalize_parts_redistribute(graph_nx, node_w, all_parts, done_nodes, done_se
           all_parts[pe] = curr_partition[pe]
           all_parts[min_pe] = curr_partition[min_pe]
           TRY_AGAIN = True
-          logger.info(f"Redistribution result: previous: {curr_part_len} {min_part_len}, after: {len(curr_partition[pe])}, {len(curr_partition[min_pe])}")
+          # logger.info(f"Redistribution result: previous: {curr_part_len} {min_part_len}, after: {len(curr_partition[pe])}, {len(curr_partition[min_pe])}")
           break
         else:
           cannot_break_pe.add(pe)
 
   lengths= [get_w(all_parts[pe], node_w) for pe in all_parts.keys()]
-  print(f"lenghts after redistributing: {lengths}")
-  logger.info(f"lenghts after redistributing: {lengths}")
+  # logger.info(f"lenghts after redistributing: {lengths}")
   # after redistribution, still truncate to shave off large parts
   all_parts= equalize_parts_truncate(graph_nx, node_w, all_parts, config_obj.partition_len_heuristic)
   
@@ -1103,7 +1098,7 @@ def two_way_partition_get_best_result(net, done_set_0, done_set_1, done_nodes, n
         
         if result_coarse != None:
           if result_coarse["obj"] > result["obj"]:
-            logger.info("Using coarse results")
+            # logger.info("Using coarse results")
             curr_part_0 = curr_part_0_coarse
             curr_part_1 = curr_part_1_coarse
             result = result_coarse
@@ -1140,7 +1135,7 @@ def two_way_partition_one_instance(net, done_set_0, done_set_1, done_nodes, node
   done_set_0_pred= full_pred_set.intersection(done_set_0)
   done_set_1_pred= full_pred_set.intersection(done_set_1)
   done_set_pred= done_set_0_pred | done_set_1_pred
-  logger.info(f"preprocess A: {time.time() - start}, {len(done_set_0_pred), len(done_set_1_pred), len(done_set_0), len(done_set_1)}")
+  # logger.info(f"preprocess A: {time.time() - start}, {len(done_set_0_pred), len(done_set_1_pred), len(done_set_0), len(done_set_1)}")
 
   start= time.time()
   start_idx_done_node= 1
@@ -1149,7 +1144,7 @@ def two_way_partition_one_instance(net, done_set_0, done_set_1, done_nodes, node
   done_CU= {done_node_mapping[n]: 1 for n in done_set_0_pred}
   for n in done_set_1_pred:
     done_CU[done_node_mapping[n]] = 2
-  logger.info(f"preprocess B: {time.time() - start}")
+  # logger.info(f"preprocess B: {time.time() - start}")
 
   sub_graph_nx = graph_nx.subgraph(nodes_to_map)
   if mode== 'fine': 
@@ -1176,14 +1171,14 @@ def two_way_partition_one_instance(net, done_set_0, done_set_1, done_nodes, node
         out_degree_threshold = max(out_degree_threshold, sub_graph_nx.number_of_edges()/5_000)
       else:
         assert 0
-      logger.info(f'chunk_len_threshold: {chunk_len_threshold}, diff_threshold: {diff_threshold}')
+      # logger.info(f'chunk_len_threshold: {chunk_len_threshold}, diff_threshold: {diff_threshold}')
       sub_graph_nx, map_coarse_node_to_set, map_node_to_coarse_node = create_coarse_graph(sub_graph_nx, diff_threshold, chunk_len_threshold, out_degree_threshold, config_obj, start_idx=1)
 
-      logger.info(f'tot_nodes coarse: {len(sub_graph_nx)}')
+      # logger.info(f'tot_nodes coarse: {len(sub_graph_nx)}')
       # leaves= [n for n in nodes_to_map if len(set(graph_nx.predecessors(n)) & nodes_to_map) == 0]
       # print(f'tot coarse leaves: {len(set([map_node_to_coarse_node[n] for n in leaves]))}')
       leaves= [n for n in sub_graph_nx if len(list(sub_graph_nx.predecessors(n))) == 0]
-      logger.info(f'tot coarse leaves: {len(leaves)}')
+      # logger.info(f'tot coarse leaves: {len(leaves)}')
 
       node_mapping= map_node_to_coarse_node
       invert_node_mapping= map_coarse_node_to_set
@@ -1252,21 +1247,21 @@ def two_way_partition_one_instance(net, done_set_0, done_set_1, done_nodes, node
 
   # NOTE: CHANGE for disabling optimizations
   # solver_threshold = 0
-  logger.warning(f"Threshold too high : {solver_threshold}")
+  # logger.warning(f"Threshold too high : {solver_threshold}")
   if len(sub_graph_nx) > solver_threshold:
     start= time.time()
     solver0, solver1, inst0, inst1= create_and_instantiate_model_parameters(sub_graph_nx, done_CU, edges_ls, model_to_use, invert_node_mapping, mode_to_use, config_obj, node_w_to_use)
-    logger.info(f"model time: {time.time() - start}")
+    # logger.info(f"model time: {time.time() - start}")
     start= time.time()
     result= asyncio.get_event_loop().run_until_complete(multiple_solvers(len(nodes_to_map), solver0, solver1, inst0, inst1, config_obj))
-    logger.info(f"solve time: {time.time() - start}")
+    # logger.info(f"solve time: {time.time() - start}")
   else:
     start= time.time()
-    logger.info("local_optimization")
+    # logger.info("local_optimization")
     loc_opt_obj= local_optimization.Local_optimization_partition(set(sub_graph_nx.nodes()), sub_graph_nx, set(), set(), set(), node_w_to_use, config_obj)
 
     result = loc_opt_obj.get_minizinc_result()
-    logger.info(f"solve time: {time.time() - start}")
+    # logger.info(f"solve time: {time.time() - start}")
     curr_part_0, curr_part_1 = post_process_results(sub_graph_nx, edges_ls, invert_node_mapping, result, mode, config_obj)
     return curr_part_0, curr_part_1, None
 
@@ -1280,10 +1275,10 @@ def two_way_partition_one_instance(net, done_set_0, done_set_1, done_nodes, node
 def post_process_results(sub_graph_nx, edges_ls, invert_node_mapping, result, mode, config_obj):
   mapped_per_CU_active= result["mapped_per_CU_active"]
   obj= result["obj"]
-  logger.info(mapped_per_CU_active)
-  logger.info(obj)
-  logger.info(f'tot_local_edges: {result["tot_local_edges"]} \
-      out of N_edges: {len(edges_ls)} and total sug_graph_edges: {sub_graph_nx.number_of_edges()}')
+  # logger.info(mapped_per_CU_active)
+  # logger.info(obj)
+  # logger.info(f'tot_local_edges: {result["tot_local_edges"]} \
+      # out of N_edges: {len(edges_ls)} and total sug_graph_edges: {sub_graph_nx.number_of_edges()}')
 
   curr_CU_active= result["curr_CU_active"]
 
@@ -1338,7 +1333,7 @@ async def multiple_solvers(net_size, solver0, solver1, inst0, inst1, config_obj)
 
   n_processes= max(1, int(1* multiprocessing.cpu_count()/2)) # decide number of parallel threads
 #  n_processes= 4
-  logger.info(f"n_processes : {n_processes}")
+  # logger.info(f"n_processes : {n_processes}")
 
   # Create a task for the solving of each instance
   timeout_t= max(200, int(net_size * (24/n_processes) * 0.5))
@@ -1347,7 +1342,7 @@ async def multiple_solvers(net_size, solver0, solver1, inst0, inst1, config_obj)
   # timeout_t= config_obj.global_time_out
 
 #  timeout_t= max(200, int(net_size * (12/n_processes) * 0.05))
-  logger.info(f"timeout_t : {timeout_t}")
+  # logger.info(f"timeout_t : {timeout_t}")
   timeout= datetime.timedelta(seconds= timeout_t)
   task = asyncio.create_task(inst0.solve_async(timeout= timeout, processes=n_processes, verbose=True))
   task.solver = solver0.name
@@ -1370,7 +1365,7 @@ async def multiple_solvers(net_size, solver0, solver1, inst0, inst1, config_obj)
       logger.error("exception raised: {}".format(e))
       exit(1)
 
-    print(t.solver, result.status, result.objective)
+    # print(t.solver, result.status, result.objective)
     if result.status == result.status.UNKNOWN:
       logger.error("No solution found! aborting")
       exit(1)
@@ -1380,13 +1375,14 @@ async def multiple_solvers(net_size, solver0, solver1, inst0, inst1, config_obj)
           result_p= t_p.result()
         except Exception as e:
           continue
-        print("Objectives: solver: {} {} , solver: {} {}".format(t.solver, result.objective, t_p.solver, result_p.objective))
+        # print("Objectives: solver: {} {} , solver: {} {}".format(t.solver, result.objective, t_p.solver, result_p.objective))
         
         if result_p.objective > result.objective:
           result= result_p
-          print("Using non-optimal solution from solver: {}".format(t_p.solver))
+          # print("Using non-optimal solution from solver: {}".format(t_p.solver))
         else:
-          print("Using non-optimal solution from solver: {}".format(t.solver))
+          pass
+          # print("Using non-optimal solution from solver: {}".format(t.solver))
     break
 
   for t_p in pending:
@@ -1507,8 +1503,8 @@ def two_way_partition (net, graph_nx, hw_details):
         print('NOOOO', parent_set, n, list(sub_graph_nx.predecessors(n)), curr_CU_active[n-1])
       node_active.append(0)
 
-  print(properly_mapped)
-  print(node_active)
+  # print(properly_mapped)
+  # print(node_active)
 
 def less_constraints(net, graph, graph_nx, hw_details):
   leaf_set= set(get_leaves(graph_nx))

@@ -1,6 +1,10 @@
 
 import os
 import subprocess
+import logging
+
+logger= logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 def par_for_v1():
   data_prefix= "\/esat\/puck1\/users\/nshah\/cpu_openmp\/"
@@ -40,8 +44,7 @@ def par_for_v1():
         os.system(cmd)
 
 
-def par_for_v2(name_ls, thread_ls, log_path, suffix):
-  data_prefix= "\/esat\/puck1\/users\/nshah\/cpu_openmp\/"
+def par_for_v2(name_ls, thread_ls, log_path, openmp_prefix, suffix):
   line_number= 8
   run_log= open(log_path, 'a+')
   print("Start", file= run_log, flush=True)
@@ -50,27 +53,27 @@ def par_for_v2(name_ls, thread_ls, log_path, suffix):
   os.system(cmd)
   for net in name_ls:
     for th in thread_ls:
-      data_path= f"{data_prefix}{net}_{suffix}_{th}.c" 
+      data_path= f"{openmp_prefix}{net}_{suffix}_{th}.c" 
+      data_path = data_path.replace('/', '\/')
       cmd= "sed -i '8s/.*/#include \"" + data_path + "\"/' par_for_v2.cpp"
-      print(cmd)
+      logger.info(f"Modifying main openmp file: src/openmp/par_for_v2.cpp to include the header file {data_path}")
       os.system(cmd)
       cmd= "make normal_cpp_psdd"
-      print(cmd)
       err= os.system(cmd)
       if err:
         print(f"Error in compilation {net}, {th}")
         print(f"{net},{th},Error compilation", file= run_log, flush= True)
       else:
-        print("Excuting")
+        logger.info("Excuting parallel code...")
         cmd= "make run_psdd"
         output= subprocess.check_output(cmd, shell=True)
         # os.system(cmd)
         output = str(output)
-        print(output)
         output = output[:-3]
         output= output[output.find('N_layers'):]
-        print(output)
-        print(f"{net},{th},{output}", file= run_log, flush= True)
+        msg= f"{net},{th},{output}"
+        print(msg, file= run_log, flush= True)
+        logger.info(f"Run statistics: {msg}")
     
 def main():
   name_ls = [\
@@ -99,7 +102,8 @@ def main():
   suffix= 'TWO_WAY_PARTITION_TWO_WAY_LIMIT_LAYERS_CPU_FINE'
   # suffix= 'LAYER_WISE_ALAP_CPU_FINE'
 
-  par_for_v2(name_ls, thread_ls, log_path, suffix)
+  openmp_prefix= "\/esat\/puck1\/users\/nshah\/cpu_openmp\/"
+  par_for_v2(name_ls, thread_ls, log_path, openmp_prefix, suffix)
 
 
 if __name__ == "__main__":

@@ -6,6 +6,11 @@ import itertools
 from . import useful_methods
 from .reporting_tools import reporting_tools
 
+import logging
+logging.basicConfig(format='%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s', level=logging.INFO)
+logger= logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 def typecast(s):
   try:
     return int(s)
@@ -22,14 +27,14 @@ def main(file_name):
 
   graph= create_raw_graph(lines, id_iter)
   useful_methods.check_if_only_one_root(graph)
-  print('raw graph len: ', len(graph))
+  logger.info(f'raw graph len: {len(graph)}')
 
 #  reporting_tools.write_psdd_dot(graph)
 #  exit(1)
   
   binarize(graph, id_iter)
   head_node= useful_methods.check_if_only_one_root(graph)
-  print('binarized graph len: ', len(graph))
+  logger.info(f'binarized graph len: {len(graph)}')
 
   graph_nx = useful_methods.create_nx_graph_from_node_graph(graph)
 
@@ -38,8 +43,9 @@ def main(file_name):
 
   ac_node_list= list(graph.keys())
   
-  print('indicators: ', len([node for node, obj in list(graph.items()) if obj.is_indicator()]))
-  print('weights: ', len([node for node, obj in list(graph.items()) if obj.is_weight()]))
+  logger.info(f'Leaf nodes: {len(leaf_list)}')
+  # print('indicators: ', len([node for node, obj in list(graph.items()) if obj.is_indicator()]))
+  # print('weights: ', len([node for node, obj in list(graph.items()) if obj.is_weight()]))
   return graph, graph_nx, head_node, leaf_list, ac_node_list
   
 

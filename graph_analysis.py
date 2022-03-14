@@ -27,8 +27,9 @@ import networkx as nx
 import cProfile
 from scipy.sparse import linalg
 from statistics import mean
+import subprocess
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(format='%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s', level=logging.INFO)
 logger= logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -48,6 +49,7 @@ import src.verif_helper
 import src.super_layer_generation.partition
 import src.psdd
 import src.openmp.gen_code
+import src.openmp.compile
 import src.sparse_linear_algebra.main
 import src.sparse_linear_algebra.matrix_names_list
 
@@ -85,8 +87,8 @@ class graph_analysis_c():
       exit(0)
 
     if mode == 'sparse_tr_solve_statistics':
-      logging.basicConfig(filename='./no_backup/run_hybrid_statistics.log', filemode='a', level=logging.INFO)
-      logging.basicConfig(level=logging.INFO)
+      # logging.basicConfig(filename='./no_backup/run_hybrid_statistics.log', filemode='a', level=logging.INFO)
+      # logging.basicConfig(level=logging.INFO)
       # name_list= src.sparse_linear_algebra.matrix_names_list.matrices_path(self.global_var.SPARSE_MATRIX_MATLAB_PATH, 
           # self.global_var,
       #     mode= 'only_category', exclude_category_ls= ['HB', 'Schenk_AFE', 'ML_Graph', 'VDOL'])
@@ -108,8 +110,6 @@ class graph_analysis_c():
 
     if mode == 'sparse_tr_solve_full':
       # sys.setrecursionlimit(1800)
-      # logging.basicConfig(filename='./no_backup/run_hybrid_two_way_part_only_local.log', filemode='w', level=logging.INFO)
-      logging.basicConfig(level=logging.INFO)
       
       # create graph from matrix
       # name_list= src.sparse_linear_algebra.matrix_names_list.matrices_path(self.global_var.SPARSE_MATRIX_MATLAB_PATH, 
@@ -410,7 +410,6 @@ class graph_analysis_c():
       exit(1)
 
     if mode == 'async_partition':
-      logging.basicConfig(level=logging.INFO)
       partition_mode= args.targs[0]
       write_files= bool(int(args.targs[1]))
 #      n_threads_ls= [1,2,4,8,16,32,64,128,256,512,1024]
@@ -428,6 +427,87 @@ class graph_analysis_c():
 
       exit(0)
 
+    if mode == 'gen_super_layers':
+      logger.info(f"###### Target workload: {args.net}, Target threads: {args.threads} ######")
+      if args.cir_type == 'psdd':
+        graph_mode = 'FINE'
+        target_app= 'SPN'
+      elif args.cir_type == 'sp_trsv':
+        graph_mode = 'COARSE'
+        target_app= 'SPARSE_TR_SOLVE'
+      else:
+        assert 0
+
+      config_obj = src.common_classes.ConfigObjTemplates()
+      config_obj.graph_init(name= args.net, cir_type= args.cir_type, graph_mode= graph_mode)
+      self.graph, self.graph_nx, self.head_node, self.leaf_list, other_obj = src.graph_init.get_graph(global_var, config_obj)
+
+      # partition the graph
+      partition_mode= 'TWO_WAY_PARTITION'
+      # partition_mode= 'LAYER_WISE'
+      # partition_mode= 'HEURISTIC'
+      # sub_partition_mode= 'ALAP'
+      sub_partition_mode= 'TWO_WAY_LIMIT_LAYERS'
+      # sub_partition_mode= 'TWO_WAY_FULL'
+      # sub_partition_mode= None
+      run_mode= 'FULL'
+      # run_mode= 'RESUME'
+      # target_device= 'PRU'
+      target_device= 'CPU'
+      COMBINE_LAYERS_THRESHOLD= 2000
+
+      # partition generation
+      write_files= True
+      COMBINE_SMALL_LAYERS= True
+
+      # partitioning assumes that leaf are all computed
+      for n in self.leaf_list:
+        self.graph[n].computed= True
+
+      name= global_var.network
+      threads= args.threads
+      config_obj = src.super_layer_generation.partition.CompileConfig(name= name.replace('/','_'), N_PE= threads, \
+          graph_mode= graph_mode,
+          partition_mode= partition_mode, sub_partition_mode=sub_partition_mode, run_mode= run_mode, \
+          target_app = target_app, target_device= target_device, \
+          write_files= write_files, global_var= self.global_var)
+
+      if config_obj.graph_mode== config_obj.graph_mode_enum.FINE:
+        node_w= defaultdict(lambda:1)
+      elif config_obj.graph_mode== config_obj.graph_mode_enum.COARSE:
+        assert 0
+      else:
+        assert 0
+
+      logger.info("####### Generating superlayers #######")
+      list_of_partitions, status_dict= self.async_partition(name, self.graph, self.graph_nx, node_w, config_obj)
+      
+      if COMBINE_SMALL_LAYERS:
+        list_of_partitions= src.super_layer_generation.partition.combine_small_layers(self.graph_nx, list_of_partitions, COMBINE_LAYERS_THRESHOLD, node_w, config_obj)
+
+      logger.info("####### Generating OpenMP code #######")
+      dataset= src.files_parser.read_dataset(global_var, name, 'test')
+      src.psdd.instanciate_literals(self.graph, dataset[0])
+      golden_val= src.ac_eval.ac_eval_non_recurse(self.graph, self.graph_nx, self.head_node)
+
+      outpath= config_obj.get_openmp_file_name()
+      batch_sz= 1
+      src.openmp.gen_code.par_for(outpath,self.graph, self.graph_nx, list_of_partitions, golden_val, batch_sz)
+
+      logger.info("####### Executing parallelized DAG #######")
+      log_path = self.global_var.LOG_PATH + 'run_log_openmp'
+      logger.info(f"Logging results in {log_path} file")
+      suffix = f"{partition_mode}"
+      suffix += f"_{sub_partition_mode}"
+      suffix += f"_{target_device}"
+      suffix += f"_{graph_mode}"
+
+      par_for_psdd([args.net], [args.threads], log_path, "../../" + self.global_var.OPENMP_PATH, suffix)
+      logger.info("####### Done! #######")
+
+    exit(0)
+
+ 
     if mode == 'psdd_full':
       # name_list= ['bnetflix']
       name_list = [\
@@ -463,11 +543,11 @@ class graph_analysis_c():
         'pumsb_star',
       ]
       name_list= [
-        'mnist'
+        'bnetflix'
       ]
 
       # n_threads_ls= [2,4,8,16,32,64]
-      n_threads_ls= [2]
+      n_threads_ls= [4]
       for name in name_list:
         logger.info(f'matrix name: {name}')
 
@@ -485,15 +565,6 @@ class graph_analysis_c():
         target_device= 'PRU'
         # target_device= 'CPU'
         target_app= 'SPN'
-
-        # HW details
-        # GLOBAL_MEM_DEPTH= 1024
-        # LOCAL_MEM_DEPTH= 512
-        GLOBAL_MEM_DEPTH= 65536
-        LOCAL_MEM_DEPTH= 65536
-        STREAM_LD_BANK_DEPTH= 65536 # words
-        STREAM_ST_BANK_DEPTH= 65536 # words
-        STREAM_INSTR_BANK_DEPTH= 65536 # words
 
         COMBINE_LAYERS_THRESHOLD= 2000
 
@@ -805,4 +876,36 @@ def create_decompose_file_name(hw_details, decompose_param_obj):
   fname += decompose_param_obj.str_fname()
 
   return fname
+
+def par_for_psdd(name_ls, thread_ls, log_path, openmp_prefix, suffix):
+  line_number= 8
+  run_log= open(log_path, 'a+')
+
+  cmd= "cd src/openmp/; make set_env"
+  os.system(cmd)
+  for net in name_ls:
+    for th in thread_ls:
+      data_path= f"{openmp_prefix}{net}_{suffix}_{th}.c" 
+      openmp_main_file= "./src/openmp/par_for_v2.cpp"
+      data_path = data_path.replace('/', '\/')
+      cmd= "sed -i '8s/.*/#include \"" + data_path + f"\"/' {openmp_main_file}"
+      logger.info(f"Modifying main openmp file: {openmp_main_file} to include the header file {data_path}")
+      print(cmd)
+      os.system(cmd)
+      cmd= "cd src/openmp; make normal_cpp_psdd"
+      err= os.system(cmd)
+      if err:
+        print(f"Error in compilation {net}, {th}")
+        print(f"{net},{th},Error compilation", file= run_log, flush= True)
+      else:
+        logger.info("Excuting 10k iterations of parallel code...")
+        cmd= "cd src/openmp; make run_psdd"
+        output= subprocess.check_output(cmd, shell=True)
+        # os.system(cmd)
+        output = str(output)
+        output = output[:-3]
+        output= output[output.find('N_layers'):]
+        msg= f"{net},{th},{output}"
+        print(msg, file= run_log, flush= True)
+        logger.info(f"Run statistics: {msg}")
 

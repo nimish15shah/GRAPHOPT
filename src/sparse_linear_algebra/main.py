@@ -18,6 +18,7 @@ import numpy as np
 import itertools
 import logging
 
+logging.basicConfig(format='%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s', level=logging.INFO)
 logger= logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 

@@ -11,7 +11,7 @@ from . import useful_methods
 from . import psdd
 from .sparse_linear_algebra import main as sparse_linear_algebra_main
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(format='%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s', level=logging.INFO)
 logger= logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -21,7 +21,7 @@ def get_graph(global_var, config_obj):
   other_obj= {}
 
   global_var.network= config_obj.name.replace('/', '_')
-  global_var.refresh()
+  global_var.refresh(global_var.network)
 
   if config_obj.cir_type == 'psdd':
     graph, graph_nx, head_node, leaf_list, _ = psdd.main(global_var.PSDD_PATH)

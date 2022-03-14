@@ -1,4 +1,5 @@
 The psdd workloads are from the UCLA StarAI circuit model zoo:  https://github.com/UCLA-StarAI/Circuit-Model-Zoo/tree/master/psdds
+The datasets are from: https://github.com/UCLA-StarAI/Density-Estimation-Datasets
 
 The sparse matrices are from the SuiteSparse matrix collection: https://sparse.tamu.edu/
 The LU factors are obtained with scipy.sparse.linalg.splu with default parameters

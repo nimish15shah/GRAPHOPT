@@ -719,6 +719,6 @@ def par_for(outpath, graph, graph_nx, list_of_partitions, golden_val, batch_sz):
 
 #  print(out_str)
   with open(outpath, 'w+') as fp:
-    logger.info(f"writing openmp code to file: {outpath}")
+    logger.info(f"writing openmp global variables to file: {outpath}")
     fp.write(out_str)
 

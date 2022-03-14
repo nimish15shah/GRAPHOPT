@@ -6,13 +6,12 @@ import logging
 
 network= 'None'
 
-logging.basicConfig(level=logging.INFO)
 logger= logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 PSDD_PATH_PREFIX = './workloads/psdd/circuits/'
 PSDD_PATH            = f'{PSDD_PATH_PREFIX}{network}.psdd'
-DATASET_PATH_PREFIX =  './workloads/psdd/datasets'
+DATASET_PATH_PREFIX =  './workloads/psdd/datasets/'
 TRAIN_DATASET_PATH= DATASET_PATH_PREFIX + f'{network}/{network}.train.data'
 TEST_DATASET_PATH= DATASET_PATH_PREFIX + f'{network}/{network}.test.data'
 VALID_DATASET_PATH= DATASET_PATH_PREFIX + f'{network}/{network}.valid.data'
@@ -26,10 +25,14 @@ SPARSE_MATRIX_MARKET_FACTORS_PATH= './workloads/sptrsv/MM_LU/'
 REPORTS_PATH= './reports/' 
 LOG_PATH= './log/' 
 NO_BACKUP_PATH= './no_backup/' 
+PARTITIONS_PATH= NO_BACKUP_PATH + 'superlayers/'
+OPENMP_PATH= NO_BACKUP_PATH + 'openmp/'
 logger.info(f"making directories {REPORTS_PATH}, {LOG_PATH}, {NO_BACKUP_PATH} if not already present")
 os.system(f'mkdir -p {REPORTS_PATH}')
 os.system(f'mkdir -p {LOG_PATH}')
 os.system(f'mkdir -p {NO_BACKUP_PATH}')
+os.system(f'mkdir -p {PARTITIONS_PATH}')
+os.system(f'mkdir -p {OPENMP_PATH}')
 
 # naming convention in benchmarks
 OPERATION_LIST_START_LINE= 1
