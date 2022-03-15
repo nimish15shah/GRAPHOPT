@@ -25,11 +25,11 @@ Log of the superlayer generation time will be created at `./log/superlayer_gen_t
 
 
 # Dependencies
-Required python packages can be installed from the requirements.txt file with the pip as follows:
+Required python packages can be installed as follows:
 
 `pip install -r requirements.txt`
 
-Google OR-Tools has to be separately installed with the FlatZinc support from https://developers.google.com/optimization/install#flatzinc
+Google OR-Tools with the FlatZinc support has to be separately installed from https://developers.google.com/optimization/install#flatzinc
 
 The PATH and LD_LIBRARY_PATH enviornment variables also have to be updated to point to the OR-Tools location.
 
