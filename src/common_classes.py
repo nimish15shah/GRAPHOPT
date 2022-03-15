@@ -196,7 +196,7 @@ class ConfigObjTemplates():
       graph_mode= "fine",
     ):
 
-    assert cir_type in ["ac", "psdd", "log", "sp_trsv"]
+    assert cir_type in ["ac", "psdd", "log", "sptrsv"]
     assert graph_mode in ["FINE", "COARSE"]
 
     self.cir_type= cir_type

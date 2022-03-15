@@ -86,28 +86,6 @@ class graph_analysis_c():
       pass
       exit(0)
 
-    if mode == 'sparse_tr_solve_statistics':
-      # logging.basicConfig(filename='./no_backup/run_hybrid_statistics.log', filemode='a', level=logging.INFO)
-      # logging.basicConfig(level=logging.INFO)
-      # name_list= src.sparse_linear_algebra.matrix_names_list.matrices_path(self.global_var.SPARSE_MATRIX_MATLAB_PATH, 
-          # self.global_var,
-      #     mode= 'only_category', exclude_category_ls= ['HB', 'Schenk_AFE', 'ML_Graph', 'VDOL'])
-      name_list= src.sparse_linear_algebra.matrix_names_list.matrices_path(self.global_var.SPARSE_MATRIX_MARKET_FACTORS_PATH,
-          self.global_var,
-          mode= 'with_LU_factors', exclude_category_ls= ['HB', 'Bai', 'Schenk_AFE'])
-      # name= src.sparse_linear_algebra.matrix_names_list.matrix_names[0]
-      print(name_list)
-
-      file_path= './no_backup/matrix_statistics_3.csv'
-      with open(file_path, 'a') as f:
-        f.write('Start\n')
-        f.close()
-      for name in name_list:
-        tr_solve_obj= src.sparse_linear_algebra.main.SparseTriangularSolve(self.global_var, name, write_files= False, verify=False, read_files= True)
-        tr_solve_obj.statistics(write_files= True, file_path= file_path)
-      
-      exit(1)
-
     if mode == 'sparse_tr_solve_full':
       # sys.setrecursionlimit(1800)
       
@@ -432,7 +410,7 @@ class graph_analysis_c():
       if args.cir_type == 'psdd':
         graph_mode = 'FINE'
         target_app= 'SPN'
-      elif args.cir_type == 'sp_trsv':
+      elif args.cir_type == 'sptrsv':
         graph_mode = 'COARSE'
         target_app= 'SPARSE_TR_SOLVE'
       else:
@@ -475,7 +453,7 @@ class graph_analysis_c():
       if config_obj.graph_mode== config_obj.graph_mode_enum.FINE:
         node_w= defaultdict(lambda:1)
       elif config_obj.graph_mode== config_obj.graph_mode_enum.COARSE:
-        assert 0
+        node_w= {n: len(list(self.graph_nx.predecessors(n))) + 1 for n in self.graph_nx.nodes()}
       else:
         assert 0
 
@@ -486,13 +464,24 @@ class graph_analysis_c():
         list_of_partitions= src.super_layer_generation.partition.combine_small_layers(self.graph_nx, list_of_partitions, COMBINE_LAYERS_THRESHOLD, node_w, config_obj)
 
       logger.info("####### Generating OpenMP code #######")
-      dataset= src.files_parser.read_dataset(global_var, name, 'test')
-      src.psdd.instanciate_literals(self.graph, dataset[0])
-      golden_val= src.ac_eval.ac_eval_non_recurse(self.graph, self.graph_nx, self.head_node)
+      if args.cir_type == 'psdd':
+        dataset= src.files_parser.read_dataset(global_var, name, 'test')
+        src.psdd.instanciate_literals(self.graph, dataset[0])
+        golden_val= src.ac_eval.ac_eval_non_recurse(self.graph, self.graph_nx, self.head_node)
 
-      outpath= config_obj.get_openmp_file_name()
-      batch_sz= 1
-      src.openmp.gen_code.par_for(outpath,self.graph, self.graph_nx, list_of_partitions, golden_val, batch_sz)
+        outpath= config_obj.get_openmp_file_name()
+        batch_sz= 1
+        src.openmp.gen_code.par_for(outpath,self.graph, self.graph_nx, list_of_partitions, golden_val, batch_sz)
+      elif args.cir_type == 'sptrsv':
+        tr_solve_obj = other_obj['tr_solve_obj']
+        matrix= tr_solve_obj.L
+        b= np.array([1.0 for _ in range(len(self.graph_nx))], dtype= 'double')
+        x_golden= linalg.spsolve_triangular(matrix, b, lower= True)
+        head_node= len(b) - 1
+        golden_val = x_golden[-1]
+        src.openmp.gen_code.par_for_sparse_tr_solve_full_coarse(self.graph, self.graph_nx, b, list_of_partitions, matrix, config_obj, head_node, golden_val)
+      else:
+        assert 0
 
       logger.info("####### Executing parallelized DAG #######")
       log_path = self.global_var.LOG_PATH + 'run_log_openmp'
@@ -502,7 +491,13 @@ class graph_analysis_c():
       suffix += f"_{target_device}"
       suffix += f"_{graph_mode}"
 
-      par_for_psdd([args.net], [args.threads], log_path, "../../" + self.global_var.OPENMP_PATH, suffix)
+      if args.cir_type == 'psdd':
+        par_for_psdd([args.net], [args.threads], log_path, "../../" + self.global_var.OPENMP_PATH, suffix)
+      elif args.cir_type == 'sptrsv':
+        par_for_sptrsv([args.net], [args.threads], log_path, "../../" + self.global_var.OPENMP_PATH, suffix)
+      else:
+        assert 0
+
       logger.info("####### Done! #######")
 
     exit(0)
@@ -511,22 +506,22 @@ class graph_analysis_c():
     if mode == 'psdd_full':
       # name_list= ['bnetflix']
       name_list = [\
-        # 'ad', \
-        # 'baudio', \
-        # 'bbc', \
-        # 'bnetflix', \
-        # 'book', \
-        # 'c20ng', \
-        # 'cr52', \
-        # 'cwebkb', \
-        # 'jester', \
-        # 'kdd', \
-        # 'mnist', \
-        'msnbc', \
-        'msweb', \
-        'nltcs', \
-        'pumsb_star', \
-        'tretail', \
+        'ad'         , \
+        'baudio'     , \
+        'bbc'        , \
+        'bnetflix'   , \
+        'book'       , \
+        'c20ng'      , \
+        'cr52'       , \
+        'cwebkb'     , \
+        'jester'     , \
+        'kdd'        , \
+        'mnist'      , \
+        'msnbc'      , \
+        'msweb'      , \
+        'nltcs'      , \
+        'pumsb_star' , \
+        'tretail'    , \
       ]
 
       # JSSC list
@@ -877,6 +872,40 @@ def create_decompose_file_name(hw_details, decompose_param_obj):
 
   return fname
 
+def par_for_sptrsv(name_ls, thread_ls, log_path, openmp_prefix, suffix):
+  line_number= 49
+  run_log= open(log_path, 'a+')
+
+  cmd= "cd src/openmp/; make set_env"
+  os.system(cmd)
+
+  for mat in name_ls:
+    for th in thread_ls:
+      mat = mat.replace('/', '_')
+      data_path= openmp_prefix + f"{mat}_{suffix}_{th}.c"
+      data_path = data_path.replace('/', '\/')
+      openmp_main_file= "./src/openmp/par_for_sparse_tr_solve_coarse.cpp"
+      cmd= f"sed -i '{line_number}s/.*/#include \"{data_path}\"/' {openmp_main_file}"
+      os.system(cmd)
+      cmd= "cd src/openmp; make normal_cpp"
+      err= os.system(cmd)
+      if err:
+        print(f"Error in compilation {mat}, {th}")
+        print(f"{mat},{th},Error compilation", file= run_log, flush= True)
+      else:
+        logger.info("Excuting 1k iterations of parallel code...")
+        cmd= "cd src/openmp; make run"
+        output= subprocess.check_output(cmd, shell=True)
+        # os.system(cmd)
+        output = str(output)
+        output = output[:-3]
+        output= output[output.find('N_layers'):]
+        msg= f"{mat},{th},{output}"
+        print(msg, file= run_log, flush= True)
+        logger.info(f"Run statistics: {msg}")
+        logger.info(f"Adding result to log file: {log_path}")
+    
+
 def par_for_psdd(name_ls, thread_ls, log_path, openmp_prefix, suffix):
   line_number= 8
   run_log= open(log_path, 'a+')
@@ -886,8 +915,8 @@ def par_for_psdd(name_ls, thread_ls, log_path, openmp_prefix, suffix):
   for net in name_ls:
     for th in thread_ls:
       data_path= f"{openmp_prefix}{net}_{suffix}_{th}.c" 
-      openmp_main_file= "./src/openmp/par_for_v2.cpp"
       data_path = data_path.replace('/', '\/')
+      openmp_main_file= "./src/openmp/par_for_v2.cpp"
       cmd= "sed -i '8s/.*/#include \"" + data_path + f"\"/' {openmp_main_file}"
       logger.info(f"Modifying main openmp file: {openmp_main_file} to include the header file {data_path}")
       print(cmd)
@@ -908,4 +937,5 @@ def par_for_psdd(name_ls, thread_ls, log_path, openmp_prefix, suffix):
         msg= f"{net},{th},{output}"
         print(msg, file= run_log, flush= True)
         logger.info(f"Run statistics: {msg}")
+        logger.info(f"Adding result to log file: {log_path}")
 

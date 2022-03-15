@@ -4,21 +4,21 @@
 import os
 import logging
 
-network= 'None'
+network= None
 
 logger= logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 PSDD_PATH_PREFIX = './workloads/psdd/circuits/'
-PSDD_PATH            = f'{PSDD_PATH_PREFIX}{network}.psdd'
+PSDD_PATH        = None
 DATASET_PATH_PREFIX =  './workloads/psdd/datasets/'
-TRAIN_DATASET_PATH= DATASET_PATH_PREFIX + f'{network}/{network}.train.data'
-TEST_DATASET_PATH= DATASET_PATH_PREFIX + f'{network}/{network}.test.data'
-VALID_DATASET_PATH= DATASET_PATH_PREFIX + f'{network}/{network}.valid.data'
+TRAIN_DATASET_PATH= None
+TEST_DATASET_PATH= None
+VALID_DATASET_PATH= None
 
 # sparse linear algebra
-SPARSE_MATRIX_MATLAB_PATH= './workloads/sptrsv/mat'
-SPARSE_MATRIX_MARKET_PATH= './workloads/sptrsv/MM'
+SPARSE_MATRIX_MATLAB_PATH= './workloads/sptrsv/mat/'
+SPARSE_MATRIX_MARKET_PATH= './workloads/sptrsv/MM/'
 SPARSE_MATRIX_MARKET_FACTORS_PATH= './workloads/sptrsv/MM_LU/'
 
 # Output files

@@ -27,8 +27,8 @@ def get_graph(global_var, config_obj):
     graph, graph_nx, head_node, leaf_list, _ = psdd.main(global_var.PSDD_PATH)
     assert nx.algorithms.components.is_weakly_connected(graph_nx)
   
-  elif config_obj.cir_type == 'sp_trsv':
-    tr_solve_obj= sparse_linear_algebra_main.SparseTriangularSolve(global_var, config_obj.name, write_files= False, verify=False, read_files= True, graph_mode= config_obj.graph_mode, output_mode= 'single_node')
+  elif config_obj.cir_type == 'sptrsv':
+    tr_solve_obj= sparse_linear_algebra_main.SparseTriangularSolve(global_var, config_obj.name, write_files= False, verify=False, read_files= True, graph_mode= config_obj.graph_mode)
 
     if config_obj.graph_mode == 'FINE':
       graph= tr_solve_obj.L_graph_obj.graph
@@ -40,10 +40,7 @@ def get_graph(global_var, config_obj):
       assert 0
     
     head_ls= useful_methods.get_head_ls(graph)
-    assert len(head_ls) == 1
     head_node = head_ls.pop()
-
-    assert nx.algorithms.components.is_weakly_connected(graph_nx)
 
     leaf_list= useful_methods.get_leaves(graph_nx)
 

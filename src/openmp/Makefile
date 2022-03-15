@@ -5,8 +5,8 @@ FLAGS= -Ofast -fassociative-math
 # FLAGS= -O3
 LARGE_FLAGS= -fPIC -m64
 FILE ?= par_for_sparse_tr_solve_coarse.cpp
-OUT_FILE ?= ./no_backup/par_for_sparse_tr_solve
-SFILE ?= ./no_backup/par_for_sparse_tr_solve.s
+OUT_FILE ?= par_for_sparse_tr_solve
+SFILE ?= par_for_sparse_tr_solve.s
 
 set_env:
 	export KMP_AFFINITY=verbose # for threading information
@@ -15,7 +15,7 @@ set_env:
 	export KMP_AFFINITY=granularity=fine,compact,1,0
 
 run:
-	./no_backup/par_for_sparse_tr_solve 1000
+	./par_for_sparse_tr_solve 1000
 
 run_psdd:
 	./par_for_v2 10000

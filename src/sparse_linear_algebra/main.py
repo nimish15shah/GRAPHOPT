@@ -138,7 +138,10 @@ def temp(global_var):
   reporting_tools.show_image()
 
 class SparseTriangularSolve():
-  def __init__(self, global_var, mtx_file_name, read_files= False, write_files= False, verify= False, graph_mode= 'FINE'):
+  def __init__(self, global_var, mtx_file_name, read_files= False, write_files= False, verify= False, graph_mode= 'FINE', output_mode= 'default', plot_matrix= False):
+    assert output_mode in ['default', 'single_node']
+    self.output_mode = output_mode
+
     self.global_var= global_var
     self.mtx_file_name= mtx_file_name
 
@@ -522,7 +525,7 @@ class SparseTriangularSolve():
       iterate_list= enumerate(col_ptrs_ls)
     else:
       assert 0
-    logger.info(f"A: {time.time() - start}")
+    # logger.info(f"A: {time.time() - start}")
 
     start= time.time()
     if reduction_mode == 'hybrid' or reduction_mode == 'chain':
@@ -530,14 +533,14 @@ class SparseTriangularSolve():
       map_v_to_reverse_lvl= useful_methods.compute_reverse_lvl(graph_nx)
     else:
       map_v_to_reverse_lvl= None
-    logger.info(f"B1: {time.time() - start}")
+    # logger.info(f"B1: {time.time() - start}")
 
     start= time.time()
     if reduction_mode == 'hybrid':
       map_v_to_slack= self.conservative_slack_on_every_node(map_v_to_reverse_lvl, graph_nx)
     else:
       map_v_to_slack= None
-    logger.info(f"B2: {time.time() - start}")
+    # logger.info(f"B2: {time.time() - start}")
 
     # row-wise list of column indices that have non-zero values
 
@@ -563,9 +566,25 @@ class SparseTriangularSolve():
       coarse_node_info= Coarse_node_mappings(r, reduction_nodes, row_prod_nodes, x_key, b_key)
       map_r_to_nodes_info[r] = coarse_node_info
 
-    logger.info(f"C: {time.time() - start}")
-    logger.info(f"C1: {time_matrix[0]}")
-    logger.info(f"C2: {time_rest[0]}")
+    # logger.info(f"C: {time.time() - start}")
+    # logger.info(f"C1: {time_matrix[0]}")
+    # logger.info(f"C2: {time_rest[0]}")
+
+    if self.output_mode == 'single_node':
+      logger.info(f"output_mode: {self.output_mode}, adding dummy nodes in case the graph does not have a single output node")
+
+      # nodes with node parents
+      output_nodes = [n for n, obj in graph_obj.graph.items() if len(obj.parent_key_list) == 0]
+      assert len(output_nodes) != 0
+
+      graph_len_before_dummy_nodes= len(graph_obj.graph)
+      if len(output_nodes) > 1:
+        graph_obj.create_tree_of_nodes(output_nodes, 'sum')
+
+        logger.info(f"{len(graph_obj.graph) - graph_len_before_dummy_nodes} dummy nodes added because there were {len(output_nodes)} output_nodes earlier")
+        logger.info(f"{len(graph_obj.graph) - graph_len_before_dummy_nodes} dummy nodes out of {len(graph_obj.graph)} total nodes. Percentage: {(len(graph_obj.graph) - graph_len_before_dummy_nodes) *100 / len(graph_obj.graph)}")
+      else:
+        logger.info("Dummy nodes not needed")
 
     graph_obj.create_graph_nx()
 

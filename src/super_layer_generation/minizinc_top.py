@@ -634,7 +634,7 @@ def two_way_partition_one_layer_non_binary(net, done_sets, done_nodes, pe_tup_fu
         tried_partitioning.add(frozen)
         
         if config_obj.graph_mode== config_obj.graph_mode_enum.FINE:
-          local_opt_threshold= 700
+          local_opt_threshold= 500
         elif config_obj.graph_mode== config_obj.graph_mode_enum.COARSE:
           local_opt_threshold= 200
         else:

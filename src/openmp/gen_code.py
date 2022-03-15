@@ -40,7 +40,7 @@ def par_for_sparse_tr_solve_full_coarse(graph, graph_nx, b, list_of_partitions_c
         cum_layer_len[t].append(cum_layer_l)
 
   for l in range(N_layers):
-    logger.info(f"working on layer: {l}")
+    # logger.info(f"working on layer: {l}")
     for t in range(N_THREADS):
       curr_partition= list_of_partitions_combined[t][l]
       # logger.info(f"working on layer: {l} with size: {len(curr_partition)}")

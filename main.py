@@ -88,14 +88,18 @@ def main(argv=None):
     'tretail', \
     'wilt', \
     'dot_for_paper', \
-    'Bai/tols4000', \
-    'HB/494_bus', \
-    'HB/bp_200', \
-    'HB/west2021', \
+    'HB/bcspwr01', \
+    'HB/bcspwr01', \
+    'HB/bcsstm02' , \
+    'HB/bcsstm05' , \
+    'HB/bcsstm22' , \
+    'HB/can_24'   , \
+    'HB/can_62'   , \
+    'HB/ibm32'    , \
     'test_net'], \
     help='Enter the name of the network to be used as an input')
 
-  parser.add_argument('--cir_type', type=str, choices=['psdd', 'sp_trsv', 'none'], default='none', help='Specify the type of circuit to be read. Default= ac')
+  parser.add_argument('--cir_type', type=str, choices=['psdd', 'sptrsv', 'none'], default='none', help='Specify the type of circuit to be read. Default= ac')
   
   parser.add_argument('--threads', type=int, default=2, help='Specify the number of target parallel threads. Default= 2')
 
