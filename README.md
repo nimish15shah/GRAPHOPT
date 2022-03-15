@@ -39,7 +39,7 @@ The c++ code is compiled with GCC 4.8.5 in our setup.
 A few sample workloads are provided in the `./workloads/` directory. To reproduce all the results from the paper, sparse matrices can be downloaded from the SuiteSparse matrix collection https://sparse.tamu.edu/ .
 
 # System requirements
-Our experiments are performed on CentOS 7. Around 300GB disk storage is needed for the workloads (not provided with this repo). Google OR-Tools can use parallel CPU threads for super layer generation, hence more threads the better.
+Our experiments are performed on CentOS 7. Around 300GB disk storage is needed for the workloads (not provided with this repo). Google OR-Tools can use parallel CPU threads for super layer generation, hence more CPU threads can be used to reduce the superlayer generation time.
 
 If you use this repository, please cite out work:
 
