@@ -1,7 +1,7 @@
 # GRAPHOPT
 Constrained-optimization based parallelization of irregular graphs
 
-Commands to run the main core algorithms:
+Commands to run the full flow (i.e., superlayer generation, openMP code generation, parallel execution):
 
 `python main.py --tmode full --net <Workload name> --threads <Number of target threads> --cir_type <Type of the workload>`
  
