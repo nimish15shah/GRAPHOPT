@@ -3,11 +3,11 @@ Constrained-optimization based parallelization of irregular graphs
 
 Commands to run the main core algorithms:
 
-`python main.py --tmode gen_super_layers --net <Workload name> --threads <Number of target threads> --cir_type <Type of the workload>`
+`python main.py --tmode full --net <Workload name> --threads <Number of target threads> --cir_type <Type of the workload>`
  
  Examples,
-`python main.py --tmode gen_super_layers --net mnist --threads 4 --cir_type psdd`
-`python main.py --tmode gen_super_layers --net HB/bcspwr01 --threads 4 --cir_type sptrsv`
+`python main.py --tmode full --net mnist --threads 4 --cir_type psdd`
+`python main.py --tmode full --net HB/bcspwr01 --threads 4 --cir_type sptrsv`
 
 Alternately, the following make commands run sample workloads:
 `make psdd_sample`

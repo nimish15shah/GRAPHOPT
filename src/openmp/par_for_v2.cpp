@@ -5,7 +5,7 @@
 #include <stdbool.h>
 #include <sys/time.h>
 //#include "data.h"
-#include "../.././no_backup/openmp/msweb_TWO_WAY_PARTITION_TWO_WAY_LIMIT_LAYERS_CPU_FINE_2.c"
+#include "../.././no_backup/openmp/mnist_TWO_WAY_PARTITION_TWO_WAY_LIMIT_LAYERS_CPU_FINE_2.c"
 /* #include "/esat/puck1/users/nshah/cpu_openmp/tretail_1024threads_512batch.c" */
 //#include "/esat/puck1/users/nshah/cpu_openmp/ad_1threads_1batch.c"
 //#include "./no_backup/wilt_data.h"

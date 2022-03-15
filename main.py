@@ -107,7 +107,7 @@ def main(argv=None):
       choices= [\
         'try', \
         'null', \
-        'gen_super_layers', \
+        'full', \
         'verif_helper', \
         'ac_eval', \
         'openmp', \
