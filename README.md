@@ -1,4 +1,4 @@
-# GRAPHOPT
+# GRAPHOPT: constrained-optimization-based parallelization of irregular graphs for CPU multithreading
 Constrained-optimization based parallelization of irregular graphs
 
 Commands to run the full flow (i.e., superlayer generation, openMP code generation, parallel execution):
@@ -24,7 +24,7 @@ Log of the runtime of the parallelized OpenMP code will be created at `./log/run
 Log of the superlayer generation time will be created at `./log/superlayer_gen_time_log`
 
 
-# Dependencies
+## Dependencies
 Required python packages can be installed as follows:
 
 `pip install -r requirements.txt`
@@ -35,10 +35,10 @@ The PATH and LD_LIBRARY_PATH enviornment variables also have to be updated to po
 
 The c++ code is compiled with GCC 4.8.5 in our setup.
 
-# Workloads
+## Workloads
 A few sample workloads are provided in the `./workloads/` directory. To reproduce all the results from the paper, sparse matrices can be downloaded from the SuiteSparse matrix collection https://sparse.tamu.edu/ .
 
-# System requirements
+## System requirements
 Our experiments are performed on CentOS 7. Around 300GB disk storage is needed for the workloads (not provided with this repo), to reproduce all the experiments from the paper. Google OR-Tools can use parallel CPU threads for super layer generation, hence more CPU threads can be used to reduce the superlayer generation time.
 
 If you use this repository, please cite out work:
