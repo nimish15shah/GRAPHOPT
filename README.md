@@ -1,5 +1,5 @@
 # GRAPHOPT: constrained-optimization-based parallelization of irregular graphs for CPU multithreading
-Constrained-optimization based parallelization of irregular graphs
+This repository contains the software for constrained-optimization based parallelization of irregular graphs described in our IEEE TPDS paper at https://ieeexplore.ieee.org/document/9713729/ 
 
 Commands to run the full flow (i.e., superlayer generation, openMP code generation, parallel execution):
 
